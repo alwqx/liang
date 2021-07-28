@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"liang/internal/model"
@@ -9,6 +10,8 @@ import (
 	"github.com/go-kratos/kratos/pkg/conf/paladin"
 	"github.com/go-kratos/kratos/pkg/log"
 	bm "github.com/go-kratos/kratos/pkg/net/http/blademaster"
+	"github.com/go-kratos/kratos/pkg/net/http/blademaster/binding"
+	extenderv1 "k8s.io/kube-scheduler/extender/v1"
 )
 
 var svc *service.Service
@@ -34,9 +37,10 @@ func New(s *service.Service) (engine *bm.Engine, err error) {
 
 func initRouter(e *bm.Engine) {
 	e.Ping(ping)
-	g := e.Group("/liang")
+	g := e.Group("/v1")
 	{
 		g.GET("/start", howToStart)
+		g.POST("/prioritizeVerb", Prioritize)
 	}
 }
 
@@ -53,4 +57,42 @@ func howToStart(c *bm.Context) {
 		Hello: "Golang 大法好 !!!",
 	}
 	c.JSON(k, nil)
+}
+
+// Prioritize 对Pod和Nodes评分
+func Prioritize(c *bm.Context) {
+	var (
+		result extenderv1.HostPriorityList
+		args   extenderv1.ExtenderArgs
+	)
+	// BindWith will process error
+	if err := c.BindWith(&args, binding.JSON); err != nil {
+		return
+	}
+
+	// 运行评分算法，得到评分结果
+	nodeNames := *args.NodeNames
+	for i := range nodeNames {
+		result = append(result, extenderv1.HostPriority{
+			Host:  nodeNames[i],
+			Score: 1,
+		})
+	}
+
+	/*fakeResult := extenderv1.HostPriorityList{
+		extenderv1.HostPriority{
+			Host:  "node1",
+			Score: 1,
+		},
+		extenderv1.HostPriority{
+			Host:  "node2",
+			Score: 1,
+		},
+	}*/
+
+	// 返回评分结果
+	// c.JSON(fakeResult, ecode.OK)
+	bb, _ := json.Marshal(result)
+	c.Bytes(http.StatusOK, "application/json; charset=utf-8", bb)
+	return
 }
