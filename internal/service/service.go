@@ -37,3 +37,12 @@ func (s *Service) Ping(ctx context.Context, e *empty.Empty) (*empty.Empty, error
 // Close close the resource.
 func (s *Service) Close() {
 }
+
+// PromDemo demo of prometheus api
+func (s *Service) PromDemo() {
+	s.dao.QueryDemo()
+}
+
+func (s *Service) QueryBandwidth() (error, map[string]int64) {
+	return s.dao.QueryBandwidth()
+}

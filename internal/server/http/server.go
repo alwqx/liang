@@ -8,6 +8,7 @@ import (
 	"liang/internal/service"
 
 	"github.com/go-kratos/kratos/pkg/conf/paladin"
+	"github.com/go-kratos/kratos/pkg/ecode"
 	"github.com/go-kratos/kratos/pkg/log"
 	bm "github.com/go-kratos/kratos/pkg/net/http/blademaster"
 	"github.com/go-kratos/kratos/pkg/net/http/blademaster/binding"
@@ -41,6 +42,8 @@ func initRouter(e *bm.Engine) {
 	{
 		g.GET("/start", howToStart)
 		g.POST("/prioritizeVerb", Prioritize)
+		g.GET("/test/default", PromDemo)
+		g.GET("/test/netbw", QueryBandwidth)
 	}
 }
 
@@ -95,4 +98,21 @@ func Prioritize(c *bm.Context) {
 	bb, _ := json.Marshal(result)
 	c.Bytes(http.StatusOK, "application/json; charset=utf-8", bb)
 	return
+}
+
+func PromDemo(c *bm.Context) {
+	svc.PromDemo()
+	c.JSON(nil, ecode.OK)
+}
+
+func QueryBandwidth(c *bm.Context) {
+	err, res := svc.QueryBandwidth()
+	if err != nil {
+		c.JSONMap(map[string]interface{}{
+			"message": err.Error(),
+		}, ecode.ServerErr)
+		return
+	}
+
+	c.JSON(res, ecode.OK)
 }
