@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-kratos/kratos/pkg/log"
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/config"
@@ -22,7 +23,7 @@ func NewPromDao(addr, user, pass string) (*PromDao, error) {
 		RoundTripper: config.NewBasicAuthRoundTripper(user, config.Secret(pass), "", api.DefaultRoundTripper),
 	})
 	if err != nil {
-		fmt.Printf("Error creating client: %v\n", err)
+		log.Error("Error creating client: %v\n", err)
 		return nil, err
 	}
 
@@ -40,13 +41,12 @@ func (promDao *PromDao) ExecPromQL(promQL string) (error, model.Value) {
 
 	result, warnings, err := promDao.API.Query(ctx, promQL, time.Now())
 	if err != nil {
-		fmt.Printf("Error querying Prometheus: %v\n", err)
+		log.Error("Error querying Prometheus: %v", err)
 		return err, nil
 	}
 	if len(warnings) > 0 {
-		fmt.Printf("Warnings: %v\n", warnings)
+		log.Error("Warnings: %v", warnings)
 	}
-	fmt.Printf("Result:\n%v\n", result)
 
 	return nil, result
 }
@@ -58,19 +58,17 @@ func (d *dao) QueryDemo() {
 
 }
 
-func (d *dao) QueryBandwidth() (error, map[string]int64) {
+func (d *dao) QueryBandwidth() (map[string]int64, error) {
 	promQL := `rate(node_network_receive_bytes_total{device=~"eth0"}[30s])*8`
 	err, result := d.promDao.ExecPromQL(promQL)
 	if err != nil {
-		fmt.Println(err)
-		return err, nil
+		return nil, err
 	}
 
 	vectorValue, ok := result.(model.Vector)
 	if !ok {
 		err := fmt.Errorf("type of result not %T, get %T", model.Vector{}, result)
-		fmt.Println(err)
-		return err, nil
+		return nil, err
 	}
 
 	resMap := make(map[string]int64)
@@ -79,5 +77,5 @@ func (d *dao) QueryBandwidth() (error, map[string]int64) {
 		resMap[string(tmp.Metric["job"])] = int64(tmp.Value * 10)
 	}
 
-	return nil, resMap
+	return resMap, err
 }

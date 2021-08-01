@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/bluele/gcache"
 	"github.com/go-kratos/kratos/pkg/conf/paladin"
-	"github.com/go-kratos/kratos/pkg/sync/pipeline/fanout"
 	xtime "github.com/go-kratos/kratos/pkg/time"
 
 	"github.com/google/wire"
@@ -20,13 +20,16 @@ type Dao interface {
 	Ping(ctx context.Context) (err error)
 
 	QueryDemo()
-	QueryBandwidth() (error, map[string]int64)
+	QueryBandwidth() (map[string]int64, error)
+
+	SetNetload(netload map[string]int64) error
+	GetNetload() (map[string]int64, error)
 }
 
 // dao dao.
 type dao struct {
 	promDao    *PromDao
-	cache      *fanout.Fanout
+	localCache gcache.Cache
 	demoExpire int32
 }
 
@@ -40,6 +43,7 @@ func newDao() (d *dao, cf func(), err error) {
 		PromAddr              string
 		PromBasicAuthUser     string
 		PromBasicAuthPassword string
+		LocalCacheExpire      int64
 		DemoExpire            xtime.Duration
 	}
 	if err = paladin.Get("application.toml").UnmarshalTOML(&cfg); err != nil {
@@ -54,7 +58,7 @@ func newDao() (d *dao, cf func(), err error) {
 
 	d = &dao{
 		promDao:    promDao,
-		cache:      fanout.New("cache"),
+		localCache: gcache.New(2000).LRU().Expiration(time.Duration(cfg.LocalCacheExpire) * time.Second).Build(),
 		demoExpire: int32(time.Duration(cfg.DemoExpire) / time.Second),
 	}
 	cf = d.Close
@@ -64,7 +68,6 @@ func newDao() (d *dao, cf func(), err error) {
 
 // Close close the resource.
 func (d *dao) Close() {
-	d.cache.Close()
 }
 
 // Ping ping the resource.

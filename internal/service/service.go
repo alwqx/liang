@@ -2,20 +2,26 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"liang/internal/dao"
+	"liang/internal/model"
 
 	"github.com/go-kratos/kratos/pkg/conf/paladin"
+	"github.com/go-kratos/kratos/pkg/log"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/wire"
+	cron3 "github.com/robfig/cron/v3"
 )
 
 var Provider = wire.NewSet(New)
 
 // Service service.
 type Service struct {
-	ac  *paladin.Map
-	dao dao.Dao
+	ac       *paladin.Map
+	dao      dao.Dao
+	cron     *cron3.Cron
+	netBwMap map[string]int64 // 节点的网卡速度信息
 }
 
 // New new a service and return.
@@ -24,8 +30,59 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 		ac:  &paladin.TOML{},
 		dao: d,
 	}
+	s.cron = cron3.New(cron3.WithSeconds())
 	cf = s.Close
 	err = paladin.Watch("application.toml", s.ac)
+
+	var (
+		hosts   []string
+		netLoad []float64
+	)
+	if err = s.ac.Get("netbwMapKeys").Slice(&hosts); err != nil {
+		log.Error("unmarshal config netbwMapKeys error: %v", err)
+		return
+	}
+	if err = s.ac.Get("netbwMapValues").Slice(&netLoad); err != nil {
+		log.Error("get slice config netbwMapValues error: %v", err)
+		return
+	}
+	keyLen, valueLen := len(hosts), len(netLoad)
+	if keyLen != valueLen {
+		err = fmt.Errorf("len of netbwMapKeys(%d) and netbwMapValues(%d) not euqal", keyLen, valueLen)
+		return
+	}
+
+	netMap := make(map[string]int64)
+	for i := 0; i < keyLen; i++ {
+		netMap[hosts[i]] = int64(netLoad[i] * model.MbitPS)
+	}
+	s.netBwMap = netMap
+	log.Info("netBwMap is %#v", netMap)
+
+	// 同步prom状态信息
+	var syncInterval string
+	syncInterval, err = s.ac.Get("syncStatusInterval").String()
+	if err != nil {
+		log.Error("get syncStatusInterval from application.toml error: %v", err)
+		return
+	}
+	err = s.SyncNetload()
+	if err != nil {
+		return
+	}
+	_, err = s.cron.AddFunc(syncInterval, func() {
+		innerErr := s.SyncNetload()
+		if innerErr != nil {
+			log.Error("%v", innerErr)
+			return
+		}
+	})
+	if err != nil {
+		log.Error("add sync prom status error: %v", err)
+		return
+	}
+	s.cron.Start()
+
 	return
 }
 
@@ -43,6 +100,22 @@ func (s *Service) PromDemo() {
 	s.dao.QueryDemo()
 }
 
-func (s *Service) QueryBandwidth() (error, map[string]int64) {
+func (s *Service) QueryBandwidth() (map[string]int64, error) {
 	return s.dao.QueryBandwidth()
+}
+
+func (s *Service) SyncNetload() error {
+	res, err := s.dao.QueryBandwidth()
+	if err != nil {
+		log.Error("get netload from prom error: %v", err)
+		return err
+	}
+
+	err = s.dao.SetNetload(res)
+	if err != nil {
+		log.Error("SetNetload error: %v", err)
+		return err
+	}
+
+	return nil
 }

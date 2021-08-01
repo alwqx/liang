@@ -64,38 +64,25 @@ func howToStart(c *bm.Context) {
 
 // Prioritize 对Pod和Nodes评分
 func Prioritize(c *bm.Context) {
-	var (
-		result extenderv1.HostPriorityList
-		args   extenderv1.ExtenderArgs
-	)
+	var args extenderv1.ExtenderArgs
 	// BindWith will process error
 	if err := c.BindWith(&args, binding.JSON); err != nil {
 		return
 	}
 
-	// 运行评分算法，得到评分结果
-	nodeNames := *args.NodeNames
-	for i := range nodeNames {
-		result = append(result, extenderv1.HostPriority{
-			Host:  nodeNames[i],
-			Score: 1,
-		})
+	res := svc.Prioritize(&args)
+	if res == nil {
+		res := make(extenderv1.HostPriorityList, 0, len(*args.NodeNames))
+		for _, name := range *args.NodeNames {
+			res = append(res, extenderv1.HostPriority{
+				Host:  name,
+				Score: 0,
+			})
+		}
 	}
 
-	/*fakeResult := extenderv1.HostPriorityList{
-		extenderv1.HostPriority{
-			Host:  "node1",
-			Score: 1,
-		},
-		extenderv1.HostPriority{
-			Host:  "node2",
-			Score: 1,
-		},
-	}*/
-
 	// 返回评分结果
-	// c.JSON(fakeResult, ecode.OK)
-	bb, _ := json.Marshal(result)
+	bb, _ := json.Marshal(res)
 	c.Bytes(http.StatusOK, "application/json; charset=utf-8", bb)
 	return
 }
@@ -106,7 +93,7 @@ func PromDemo(c *bm.Context) {
 }
 
 func QueryBandwidth(c *bm.Context) {
-	err, res := svc.QueryBandwidth()
+	res, err := svc.QueryBandwidth()
 	if err != nil {
 		c.JSONMap(map[string]interface{}{
 			"message": err.Error(),
