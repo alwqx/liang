@@ -18,10 +18,11 @@ var Provider = wire.NewSet(New)
 
 // Service service.
 type Service struct {
-	ac       *paladin.Map
-	dao      dao.Dao
-	cron     *cron3.Cron
-	netBwMap map[string]int64 // 节点的网卡速度信息
+	ac        *paladin.Map
+	dao       dao.Dao
+	cron      *cron3.Cron
+	netBwMap  map[string]int64 // 节点的网卡速度信息
+	nodeNames []string
 }
 
 // New new a service and return.
@@ -42,6 +43,8 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 		log.Error("unmarshal config netbwMapKeys error: %v", err)
 		return
 	}
+	s.nodeNames = hosts
+
 	if err = s.ac.Get("netbwMapValues").Slice(&netLoad); err != nil {
 		log.Error("get slice config netbwMapValues error: %v", err)
 		return
@@ -54,7 +57,11 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 
 	netMap := make(map[string]int64)
 	for i := 0; i < keyLen; i++ {
-		netMap[hosts[i]] = int64(netLoad[i] * model.MbitPS)
+		netmp := int64(netLoad[i] * model.MbitPS)
+		if netmp == 0 {
+			err = fmt.Errorf("netload of %s is %f, should not be zero", hosts[i], netLoad[i])
+		}
+		netMap[hosts[i]] = netmp
 	}
 	s.netBwMap = netMap
 	log.Info("netBwMap is %#v", netMap)
@@ -111,7 +118,21 @@ func (s *Service) SyncNetload() error {
 		return err
 	}
 
-	err = s.dao.SetNetload(res)
+	// 过滤掉不符合的nodes，prom可能监控不在k8s集群中的node
+	nodeNames := s.nodeNames
+	netMap := make(map[string]int64)
+	for _, name := range nodeNames {
+		if netCap, ok := res[name]; ok {
+			netMap[name] = netCap
+		}
+	}
+	if len(netMap) == 0 {
+		log.Error("netload from prometheus is %v, nodeName is %v, not match",
+			res, nodeNames)
+		return nil
+	}
+
+	err = s.dao.SetNetload(netMap)
 	if err != nil {
 		log.Error("SetNetload error: %v", err)
 		return err

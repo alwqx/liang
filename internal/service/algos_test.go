@@ -20,6 +20,16 @@ func TestBalanceNetloadPriority_BNPScore(t *testing.T) {
 		Expected  map[string]int64
 	}{
 		{
+			Name:      "test 0",
+			NodeNames: []string{"node-small"},
+			Needed:    1024,
+			CurArr:    []float64{0}, // bit/s
+			CapArr:    []float64{model.MbitPS * 1},
+			Expected: map[string]int64{
+				"node-small": 100,
+			},
+		},
+		{
 			Name:      "test 1",
 			NodeNames: []string{"node-small", "node-medium", "node-large"},
 			Needed:    1024,
@@ -104,6 +114,26 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 		CapMap    map[string]int64
 		Expected  extenderv1.HostPriorityList
 	}{
+		{
+			Name: "test 0",
+			Pod: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						model.ResourceNetloadKey: "1024",
+					},
+				},
+			},
+			NodeNames: []string{"node-small"},
+			CurMap: map[string]int64{
+				"node-small": 0,
+			},
+			CapMap: map[string]int64{
+				"node-small": model.KbitPS,
+			},
+			Expected: extenderv1.HostPriorityList{
+				extenderv1.HostPriority{Host: "node-small", Score: 100},
+			},
+		},
 		{
 			Name: "test 1",
 			Pod: &v1.Pod{

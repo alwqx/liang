@@ -93,7 +93,11 @@ func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMa
 // score 内部评分函数
 func (algo *BalanceNetloadPriority) BNPScore(nodeNames []string, needed int64, curMap, capMap []float64) map[string]int64 {
 	nodeNum := len(nodeNames)
-
+	if nodeNum == 1 {
+		return map[string]int64{
+			nodeNames[0]: model.MaxNodeScore,
+		}
+	}
 	// 1. 计算当前节点的负载
 	curLoad := make([]float64, nodeNum)
 	for i := 0; i < nodeNum; i++ {
