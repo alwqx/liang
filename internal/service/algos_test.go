@@ -21,72 +21,88 @@ func TestBalanceNetloadPriority_BNPScore(t *testing.T) {
 	}{
 		{
 			Name:      "test 0",
-			NodeNames: []string{"node-small"},
-			Needed:    1024,
+			NodeNames: []string{"node1"},
+			Needed:    1,
 			CurArr:    []float64{0}, // bit/s
 			CapArr:    []float64{model.MbitPS * 1},
 			Expected: map[string]int64{
-				"node-small": 100,
+				"node1": 100,
 			},
 		},
 		{
 			Name:      "test 1",
-			NodeNames: []string{"node-small", "node-medium", "node-large"},
-			Needed:    1024,
+			NodeNames: []string{"node1", "node2", "node3"},
+			Needed:    1,
 			CurArr:    []float64{0, 0, 0}, // bit/s
 			CapArr:    []float64{model.MbitPS * 1, model.MbitPS * 1.5, model.MbitPS * 2.5},
 			Expected: map[string]int64{
-				"node-small":  0,
-				"node-medium": 66,
-				"node-large":  100,
+				"node1": 0,
+				"node2": 66,
+				"node3": 100,
 			},
 		},
 		{
 			Name:      "test 2",
-			NodeNames: []string{"node-small", "node-medium", "node-large"},
-			Needed:    1024,
+			NodeNames: []string{"node1", "node2", "node3"},
+			Needed:    1,
 			CurArr:    []float64{1024, 1024, 1024}, // bit/s
 			CapArr:    []float64{model.MbitPS * 1, model.MbitPS * 1.5, model.MbitPS * 2.5},
 			Expected: map[string]int64{
-				"node-small":  0,
-				"node-medium": 72,
-				"node-large":  100,
+				"node1": 0,
+				"node2": 76,
+				"node3": 100,
 			},
 		},
 		{
 			Name:      "test 3",
-			NodeNames: []string{"node-small", "node-medium", "node-large"},
-			Needed:    1024,
+			NodeNames: []string{"node1", "node2", "node3"},
+			Needed:    1,
 			CurArr:    []float64{16807.00002, 17923.2, 0.0}, // bit/s
 			CapArr:    []float64{model.GbitPS * 1, model.GbitPS * 1.5, model.GbitPS * 2.5},
 			Expected: map[string]int64{
-				"node-small":  0,
-				"node-medium": 51,
-				"node-large":  100,
+				"node1": 0,
+				"node2": 51,
+				"node3": 100,
 			},
 		},
 		{
 			Name:      "test 4",
-			NodeNames: []string{"node-small", "node-medium", "node-large"},
-			Needed:    1024,
+			NodeNames: []string{"node1", "node2", "node3"},
+			Needed:    1,
 			CurArr:    []float64{0, 1024, 1024}, // bit/s
 			CapArr:    []float64{model.GbitPS * 1, model.GbitPS * 1.5, model.GbitPS * 2.5},
 			Expected: map[string]int64{
-				"node-small":  100,
-				"node-medium": 0,
-				"node-large":  75,
+				"node1": 100,
+				"node2": 0,
+				"node3": 33,
 			},
 		},
 		{
 			Name:      "test 5",
-			NodeNames: []string{"node-small", "node-medium", "node-large"},
-			Needed:    1024,
-			CurArr:    []float64{512, 4096, 2048}, // bit/s
-			CapArr:    []float64{model.MbitPS, model.MbitPS, model.MbitPS},
+			NodeNames: []string{"node1", "node2", "node3", "node4"},
+			Needed:    1,
+			CurArr:    []float64{512, 4096, 2048, 1024}, // bit/s
+			CapArr:    []float64{model.MbitPS, model.MbitPS, model.MbitPS * 2, model.MbitPS * 3},
 			Expected: map[string]int64{
-				"node-small":  100,
-				"node-medium": 0,
-				"node-large":  57,
+				"node1": 100,
+				"node2": 0,
+				"node3": 79,
+				"node4": 83,
+			},
+		},
+		{
+			Name:      "test 6",
+			NodeNames: []string{"node1", "node2", "node3", "node4", "node5", "node6"},
+			Needed:    2,
+			CurArr:    []float64{512, 4096, 2048, 512, 1024, 1024}, // Kbit/s
+			CapArr:    []float64{model.MbitPS, model.MbitPS * 2, model.MbitPS, model.MbitPS * 5, model.GbitPS, model.MbitPS},
+			Expected: map[string]int64{
+				"node1": 100,
+				"node2": 35,
+				"node3": 0,
+				"node4": 82,
+				"node5": 71,
+				"node6": 66,
 			},
 		},
 	}
@@ -119,19 +135,19 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 			Pod: &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						model.ResourceNetloadKey: "1024",
+						model.ResourceNetloadKey: "1",
 					},
 				},
 			},
-			NodeNames: []string{"node-small"},
+			NodeNames: []string{"node1"},
 			CurMap: map[string]int64{
-				"node-small": 0,
+				"node1": 0,
 			},
 			CapMap: map[string]int64{
-				"node-small": model.KbitPS,
+				"node1": model.KbitPS,
 			},
 			Expected: extenderv1.HostPriorityList{
-				extenderv1.HostPriority{Host: "node-small", Score: 100},
+				extenderv1.HostPriority{Host: "node1", Score: 100},
 			},
 		},
 		{
@@ -139,25 +155,25 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 			Pod: &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						model.ResourceNetloadKey: "1024",
+						model.ResourceNetloadKey: "1",
 					},
 				},
 			},
-			NodeNames: []string{"node-small", "node-medium", "node-large"},
+			NodeNames: []string{"node1", "node2", "node3"},
 			CurMap: map[string]int64{
-				"node-small":  0,
-				"node-medium": 0,
-				"node-large":  0,
+				"node1": 0,
+				"node2": 0,
+				"node3": 0,
 			},
 			CapMap: map[string]int64{
-				"node-small":  model.KbitPS,
-				"node-medium": model.MbitPS,
-				"node-large":  model.GbitPS,
+				"node1": model.KbitPS,
+				"node2": model.MbitPS,
+				"node3": model.GbitPS,
 			},
 			Expected: extenderv1.HostPriorityList{
-				extenderv1.HostPriority{Host: "node-small", Score: 0},
-				extenderv1.HostPriority{Host: "node-medium", Score: 99},
-				extenderv1.HostPriority{Host: "node-large", Score: 100},
+				extenderv1.HostPriority{Host: "node1", Score: 0},
+				extenderv1.HostPriority{Host: "node2", Score: 99},
+				extenderv1.HostPriority{Host: "node3", Score: 100},
 			},
 		},
 		{
@@ -165,25 +181,25 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 			Pod: &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						model.ResourceNetloadKey: "1024",
+						model.ResourceNetloadKey: "1",
 					},
 				},
 			},
-			NodeNames: []string{"node-small", "node-medium", "node-large"},
+			NodeNames: []string{"node1", "node2", "node3"},
 			CurMap: map[string]int64{
-				"node-small":  512,
-				"node-medium": 4096,
-				"node-large":  2048,
+				"node1": 512,
+				"node2": 4096,
+				"node3": 2048,
 			},
 			CapMap: map[string]int64{
-				"node-small":  model.MbitPS,
-				"node-medium": model.MbitPS,
-				"node-large":  model.MbitPS,
+				"node1": model.MbitPS,
+				"node2": model.MbitPS,
+				"node3": model.MbitPS,
 			},
 			Expected: extenderv1.HostPriorityList{
-				extenderv1.HostPriority{Host: "node-small", Score: 100},
-				extenderv1.HostPriority{Host: "node-medium", Score: 0},
-				extenderv1.HostPriority{Host: "node-large", Score: 57},
+				extenderv1.HostPriority{Host: "node1", Score: 100},
+				extenderv1.HostPriority{Host: "node2", Score: 0},
+				extenderv1.HostPriority{Host: "node3", Score: 57},
 			},
 		},
 		{
@@ -191,25 +207,25 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 			Pod: &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						model.ResourceNetloadKey: "1024",
+						model.ResourceNetloadKey: "1",
 					},
 				},
 			},
-			NodeNames: []string{"node-small", "node-medium", "node-large"},
+			NodeNames: []string{"node1", "node2", "node3"},
 			CurMap: map[string]int64{
-				"node-small":  0,
-				"node-medium": 1024,
-				"node-large":  1024,
+				"node1": 0,
+				"node2": 1024,
+				"node3": 1024,
 			},
 			CapMap: map[string]int64{
-				"node-small":  model.GbitPS,
-				"node-medium": model.GbitPS * 1.5,
-				"node-large":  model.GbitPS * 2.5,
+				"node1": model.GbitPS,
+				"node2": model.GbitPS * 1.5,
+				"node3": model.GbitPS * 2.5,
 			},
 			Expected: extenderv1.HostPriorityList{
-				extenderv1.HostPriority{Host: "node-small", Score: 100},
-				extenderv1.HostPriority{Host: "node-medium", Score: 0},
-				extenderv1.HostPriority{Host: "node-large", Score: 75},
+				extenderv1.HostPriority{Host: "node1", Score: 100},
+				extenderv1.HostPriority{Host: "node2", Score: 0},
+				extenderv1.HostPriority{Host: "node3", Score: 75},
 			},
 		},
 	}

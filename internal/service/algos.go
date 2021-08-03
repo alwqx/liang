@@ -23,6 +23,7 @@ func (s *Service) Prioritize(args *extenderv1.ExtenderArgs) *extenderv1.HostPrio
 		return nil
 	}
 	res := bnp.Score(args.Pod, *args.NodeNames, curMap, s.netBwMap)
+	log.V(5).Info("score result of BNP is: %#v", res)
 
 	return &res
 }
@@ -49,7 +50,7 @@ func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMa
 		neededMap[k] = vInt
 	}
 
-	netNeed := neededMap[model.ResourceNetloadKey]
+	netNeed := neededMap[model.ResourceNetloadKey] * model.KbitPS
 	validNames := make([]string, 0)
 	curArr := make([]float64, 0)
 	capArr := make([]float64, 0)
@@ -58,9 +59,21 @@ func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMa
 	for i := 0; i < nodeNum; i++ {
 		nodeName := nodeNames[i]
 		netCur, ok := curMap[nodeName]
+		if !ok {
+			log.Warn("current net info of node %s does not exist, skip", nodeName)
+			continue
+		}
+
 		netCap, ok1 := capMap[nodeName]
 		// 过滤掉不存在或者资源超出的情况
-		if !ok || !ok1 || netCur+netNeed > netCap {
+		if !ok1 {
+			log.Warn("cap net info of node %s does not exist, skip", nodeName)
+			continue
+		}
+
+		if netCur+netNeed > netCap {
+			log.Warn("request net %d plus cur net %d overflow net cap %d, skip",
+				netNeed, netCur, netCap)
 			continue
 		}
 
@@ -69,8 +82,20 @@ func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMa
 		capArr = append(capArr, float64(capMap[nodeName]))
 	}
 
-	scoreMap := algo.BNPScore(validNames, netNeed, curArr, capArr)
+	// 没有一个node符合条件
+	if len(validNames) == 0 {
+		log.Warn("none nodes is valid, all nodes's score is 0")
+		scoreRes := make(extenderv1.HostPriorityList, nodeNum)
+		for i := 0; i < nodeNum; i++ {
+			nodeName := nodeNames[i]
+			scoreRes[i] = extenderv1.HostPriority{
+				Host:  nodeName,
+				Score: model.MinNodeScore,
+			}
+		}
+	}
 
+	scoreMap := algo.BNPScore(validNames, netNeed, curArr, capArr)
 	scoreRes := make(extenderv1.HostPriorityList, nodeNum)
 	for i := 0; i < nodeNum; i++ {
 		nodeName := nodeNames[i]
@@ -90,14 +115,27 @@ func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMa
 	return scoreRes
 }
 
-// score 内部评分函数
+// BNPScore 内部评分函数
+// needed 单位 Kbit/s, curMap、capMap单位Kbit/s
 func (algo *BalanceNetloadPriority) BNPScore(nodeNames []string, needed int64, curMap, capMap []float64) map[string]int64 {
 	nodeNum := len(nodeNames)
+	// 如果needed为0，则BNP算法没有意义，所有节点评分为0
+	if needed == 0 {
+		scoreMap := make(map[string]int64)
+		for i := 0; i < nodeNum; i++ {
+			nodeName := nodeNames[i]
+			scoreMap[nodeName] = model.MinNodeScore
+		}
+
+		return scoreMap
+	}
+
 	if nodeNum == 1 {
 		return map[string]int64{
 			nodeNames[0]: model.MaxNodeScore,
 		}
 	}
+
 	// 1. 计算当前节点的负载
 	curLoad := make([]float64, nodeNum)
 	for i := 0; i < nodeNum; i++ {

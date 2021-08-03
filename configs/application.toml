@@ -5,7 +5,8 @@ promBasicAuthUser = "admin"
 promBasicAuthPassword = "adminlwq"
 
 # 网卡对应的主机名
-netbwMapKeys = ["node-cn2","node-master"]
+#netbwMapKeys = ["node-cn2","k8s-master"]
+netbwMapKeys = ["node1","k8s-master"]
 # 网卡速度带宽信息，单位Mbps
 netbwMapValues = [1024.0,512.0]
 

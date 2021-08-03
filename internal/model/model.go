@@ -4,7 +4,8 @@ package model
 const (
 	PodAnnotationKey   string = "Liang"
 	ResourceNetloadKey string = "LiangNetload"
-	KbitPS                    = 1024
+	BaseBitPS                 = 1
+	KbitPS                    = BaseBitPS * 1024
 	MbitPS                    = KbitPS * 1024
 	GbitPS                    = MbitPS * 1024
 

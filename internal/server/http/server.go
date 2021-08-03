@@ -70,6 +70,19 @@ func Prioritize(c *bm.Context) {
 		return
 	}
 
+	// print args info
+	jres, _ := json.Marshal(args)
+	log.V(10).Info("http Prioritize api - args is: \n%s", string(jres))
+
+	// check args nodeNames, it may be nil
+	if args.NodeNames == nil {
+		nodeNames := make([]string, 0, len(args.Nodes.Items))
+		for _, item := range args.Nodes.Items {
+			nodeNames = append(nodeNames, item.Name)
+		}
+		args.NodeNames = &nodeNames
+	}
+
 	res := svc.Prioritize(&args)
 	if res == nil {
 		res := make(extenderv1.HostPriorityList, 0, len(*args.NodeNames))

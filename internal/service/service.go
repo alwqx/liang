@@ -57,7 +57,8 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 
 	netMap := make(map[string]int64)
 	for i := 0; i < keyLen; i++ {
-		netmp := int64(netLoad[i] * model.MbitPS)
+		// 内部计算单位统一为Kbit/s
+		netmp := int64(netLoad[i] * (model.MbitPS / 1024))
 		if netmp == 0 {
 			err = fmt.Errorf("netload of %s is %f, should not be zero", hosts[i], netLoad[i])
 		}
@@ -77,6 +78,7 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 	if err != nil {
 		return
 	}
+	// TODO: 做下判断，如果err次数过多，直接panic
 	_, err = s.cron.AddFunc(syncInterval, func() {
 		innerErr := s.SyncNetload()
 		if innerErr != nil {

@@ -59,7 +59,7 @@ func (d *dao) QueryDemo() {
 }
 
 func (d *dao) QueryBandwidth() (map[string]int64, error) {
-	promQL := `rate(node_network_receive_bytes_total{device=~"eth0"}[30s])*8`
+	promQL := `rate(node_network_receive_bytes_total{device=~"eth0"}[30s])*8/1024`
 	err, result := d.promDao.ExecPromQL(promQL)
 	if err != nil {
 		return nil, err
