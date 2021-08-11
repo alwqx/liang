@@ -109,12 +109,12 @@ func (s *Service) PromDemo() {
 	s.dao.QueryDemo()
 }
 
-func (s *Service) QueryBandwidth() (map[string]int64, error) {
-	return s.dao.QueryBandwidth()
+func (s *Service) QueryBandwidth(bwType string) (map[string]int64, error) {
+	return s.dao.QueryBandwidth(bwType)
 }
 
 func (s *Service) SyncNetload() error {
-	res, err := s.dao.QueryBandwidth()
+	res, err := s.dao.QueryBandwidth(model.BwTypeDown)
 	if err != nil {
 		log.Error("get netload from prom error: %v", err)
 		return err

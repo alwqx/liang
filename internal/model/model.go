@@ -11,6 +11,10 @@ const (
 
 	MaxNodeScore = 100
 	MinNodeScore = 0
+
+	// 网络负载类型，分为上传负载和下载负载
+	BwTypeUp   = "up"
+	BwTypeDown = "down"
 )
 
 // Kratos hello kratos.

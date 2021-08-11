@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	liangModel "liang/internal/model"
+
 	"github.com/go-kratos/kratos/pkg/log"
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -54,12 +56,18 @@ func (promDao *PromDao) ExecPromQL(promQL string) (error, model.Value) {
 func (d *dao) QueryDemo() {
 	// d.promDao.ExecPromQL("up")
 	// d.promDao.ExecPromQL(`increase(node_network_receive_bytes_total{device=~"eth0"}[30s])`)
-	d.promDao.ExecPromQL(`rate(node_network_receive_bytes_total{device=~"eth0"}[30s])*8/1024`)
+	d.promDao.ExecPromQL(`max(irate(node_network_receive_bytes_total[30s])*8/1024) by (job)`)
 
 }
 
-func (d *dao) QueryBandwidth() (map[string]int64, error) {
-	promQL := `rate(node_network_receive_bytes_total{device=~"eth0"}[30s])*8/1024`
+// QueryBandwidth 获取网络负载，根据参数决定是下载负载还是上传负载
+func (d *dao) QueryBandwidth(bwType string) (map[string]int64, error) {
+	var promQL string
+	if bwType == liangModel.BwTypeDown {
+		promQL = `max(irate(node_network_receive_bytes_total[30s])*8/1024) by (job)`
+	} else {
+		promQL = `max(irate(node_network_transmit_bytes_total[30s])*8/1024) by (job)`
+	}
 	err, result := d.promDao.ExecPromQL(promQL)
 	if err != nil {
 		return nil, err
@@ -74,7 +82,8 @@ func (d *dao) QueryBandwidth() (map[string]int64, error) {
 	resMap := make(map[string]int64)
 	for i := 0; i < len(vectorValue); i++ {
 		tmp := vectorValue[i]
-		resMap[string(tmp.Metric["job"])] = int64(tmp.Value * 10)
+		// TODO: 确认下这里为什么要除以10？
+		resMap[string(tmp.Metric["job"])] = int64(tmp.Value)
 	}
 
 	return resMap, err

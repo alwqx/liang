@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"liang/internal/model"
@@ -72,7 +73,7 @@ func Prioritize(c *bm.Context) {
 
 	// print args info
 	jres, _ := json.Marshal(args)
-	log.V(10).Info("http Prioritize api - args is: \n%s", string(jres))
+	log.V(5).Info("http Prioritize api - args is: \n%s", string(jres))
 
 	// check args nodeNames, it may be nil
 	if args.NodeNames == nil {
@@ -106,7 +107,16 @@ func PromDemo(c *bm.Context) {
 }
 
 func QueryBandwidth(c *bm.Context) {
-	res, err := svc.QueryBandwidth()
+	bwType := c.Request.URL.Query().Get("bw_type")
+	if bwType == "" {
+		err := fmt.Errorf("bw_type should not be empty")
+		c.JSONMap(map[string]interface{}{
+			"message": err.Error(),
+		}, ecode.RequestErr)
+		return
+	}
+
+	res, err := svc.QueryBandwidth(bwType)
 	if err != nil {
 		c.JSONMap(map[string]interface{}{
 			"message": err.Error(),

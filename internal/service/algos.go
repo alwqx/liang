@@ -23,7 +23,7 @@ func (s *Service) Prioritize(args *extenderv1.ExtenderArgs) *extenderv1.HostPrio
 		return nil
 	}
 	res := bnp.Score(args.Pod, *args.NodeNames, curMap, s.netBwMap)
-	log.V(5).Info("score result of BNP is: %#v", res)
+	log.V(3).Info("score result of BNP is: %#v", res)
 
 	return &res
 }
@@ -130,6 +130,11 @@ func (algo *BalanceNetloadPriority) BNPScore(nodeNames []string, needed int64, c
 		return scoreMap
 	}
 
+	if nodeNum == 0 {
+		scoreArr := make(map[string]int64)
+		return scoreArr
+	}
+
 	if nodeNum == 1 {
 		return map[string]int64{
 			nodeNames[0]: model.MaxNodeScore,
@@ -177,6 +182,6 @@ func (algo *BalanceNetloadPriority) BNPScore(nodeNames []string, needed int64, c
 		}
 	}
 
-	log.V(5).Info("scoreArr: %v", scoreArr)
+	log.V(3).Info("scoreArr: %v", scoreArr)
 	return scoreArr
 }
