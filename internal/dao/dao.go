@@ -20,7 +20,7 @@ type Dao interface {
 	Ping(ctx context.Context) (err error)
 
 	QueryDemo()
-	QueryBandwidth(bwType string) (map[string]int64, error)
+	QueryNetIO(bwType string) (map[string]int64, error)
 
 	SetNetload(netload map[string]int64) error
 	GetNetload() (map[string]int64, error)

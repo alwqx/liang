@@ -44,7 +44,7 @@ func initRouter(e *bm.Engine) {
 		g.GET("/start", howToStart)
 		g.POST("/prioritizeVerb", Prioritize)
 		g.GET("/test/default", PromDemo)
-		g.GET("/test/netbw", QueryBandwidth)
+		g.GET("/test/netbw", QueryNetIO)
 	}
 }
 
@@ -106,7 +106,7 @@ func PromDemo(c *bm.Context) {
 	c.JSON(nil, ecode.OK)
 }
 
-func QueryBandwidth(c *bm.Context) {
+func QueryNetIO(c *bm.Context) {
 	bwType := c.Request.URL.Query().Get("bw_type")
 	if bwType == "" {
 		err := fmt.Errorf("bw_type should not be empty")
@@ -116,7 +116,7 @@ func QueryBandwidth(c *bm.Context) {
 		return
 	}
 
-	res, err := svc.QueryBandwidth(bwType)
+	res, err := svc.QueryNetIO(bwType)
 	if err != nil {
 		c.JSONMap(map[string]interface{}{
 			"message": err.Error(),

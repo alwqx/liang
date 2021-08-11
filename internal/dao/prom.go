@@ -60,8 +60,8 @@ func (d *dao) QueryDemo() {
 
 }
 
-// QueryBandwidth 获取网络负载，根据参数决定是下载负载还是上传负载
-func (d *dao) QueryBandwidth(bwType string) (map[string]int64, error) {
+// QueryNetIO 获取网络负载，根据参数决定是下载负载还是上传负载
+func (d *dao) QueryNetIO(bwType string) (map[string]int64, error) {
 	var promQL string
 	if bwType == liangModel.BwTypeDown {
 		promQL = `max(irate(node_network_receive_bytes_total[30s])*8/1024) by (job)`
