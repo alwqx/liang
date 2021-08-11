@@ -135,7 +135,7 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 			Pod: &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						model.ResourceNetloadKey: "1",
+						model.ResourceNetIOKey: "1",
 					},
 				},
 			},
@@ -155,7 +155,7 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 			Pod: &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						model.ResourceNetloadKey: "1",
+						model.ResourceNetIOKey: "1",
 					},
 				},
 			},
@@ -181,7 +181,7 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 			Pod: &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						model.ResourceNetloadKey: "1",
+						model.ResourceNetIOKey: "1",
 					},
 				},
 			},
@@ -207,7 +207,7 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 			Pod: &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						model.ResourceNetloadKey: "1",
+						model.ResourceNetIOKey: "1",
 					},
 				},
 			},

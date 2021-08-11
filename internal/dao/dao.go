@@ -19,11 +19,18 @@ type Dao interface {
 	Close()
 	Ping(ctx context.Context) (err error)
 
-	QueryDemo()
-	QueryNetIO(bwType string) (map[string]int64, error)
+	SetKV(k string, v interface{}) error
 
-	SetNetload(netload map[string]int64) error
-	GetNetload() (map[string]int64, error)
+	QueryDemo()
+	QueryMaxDiskIO() (map[string]int64, error)
+	QueryMaxNetIO() (map[string]int64, error)
+	QueryNetIO(bwType string) (map[string]int64, error)
+	QueryDiskIO(diskType string) (map[string]int64, error)
+	QueryCPUUsage() (map[string]int64, error)
+	QueryMemUsage() (map[string]int64, error)
+
+	SetNetIO(netload map[string]int64) error
+	GetNetIO() (map[string]int64, error)
 }
 
 // dao dao.

@@ -3,6 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
 
 	"liang/internal/dao"
 	"liang/internal/model"
@@ -74,17 +79,20 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 		log.Error("get syncStatusInterval from application.toml error: %v", err)
 		return
 	}
-	err = s.SyncNetload()
+	// err = s.SyncNetIO()
+	err = s.ParallelSyncInfo()
 	if err != nil {
 		return
 	}
 	// TODO: 做下判断，如果err次数过多，直接panic
 	_, err = s.cron.AddFunc(syncInterval, func() {
-		innerErr := s.SyncNetload()
+		// innerErr := s.SyncNetIO()
+		innerErr := s.ParallelSyncInfo()
 		if innerErr != nil {
 			log.Error("%v", innerErr)
 			return
 		}
+		s.ParallelSyncInfo()
 	})
 	if err != nil {
 		log.Error("add sync prom status error: %v", err)
@@ -109,36 +117,199 @@ func (s *Service) PromDemo() {
 	s.dao.QueryDemo()
 }
 
+func (s *Service) GetPromInfo() (map[string](map[string]int64), error) {
+	netIO, _ := s.dao.QueryMaxNetIO()
+	diskIO, _ := s.dao.QueryMaxDiskIO()
+	cpuUsage, _ := s.dao.QueryCPUUsage()
+	memUsage, _ := s.dao.QueryMemUsage()
+
+	return map[string](map[string]int64){
+		"net_io":    netIO,
+		"disk_io":   diskIO,
+		"cpu_usage": cpuUsage,
+		"mem_usage": memUsage,
+	}, nil
+}
+
 func (s *Service) QueryNetIO(bwType string) (map[string]int64, error) {
 	return s.dao.QueryNetIO(bwType)
 }
 
-func (s *Service) SyncNetload() error {
-	res, err := s.dao.QueryNetIO(model.BwTypeDown)
+func (s *Service) QueryDiskIO(diskType string) (map[string]int64, error) {
+	return s.dao.QueryDiskIO(diskType)
+}
+
+func (s *Service) QueryMaxNetIO() (map[string]int64, error) {
+	return s.dao.QueryMaxNetIO()
+}
+
+func (s *Service) QueryMaxDiskIO() (map[string]int64, error) {
+	return s.dao.QueryMaxDiskIO()
+}
+
+func (s *Service) QueryCPUUsage() (map[string]int64, error) {
+	return s.dao.QueryCPUUsage()
+}
+
+func (s *Service) QueryMemUsage() (map[string]int64, error) {
+	return s.dao.QueryMemUsage()
+}
+
+// filterByNodeName 根据node name过滤结果
+func (s *Service) filterByNodeName(inMap map[string]int64) map[string]int64 {
+	nodeNames := s.nodeNames
+	outMap := make(map[string]int64)
+	for _, name := range nodeNames {
+		if v, ok := inMap[name]; ok {
+			outMap[name] = v
+		}
+	}
+
+	if len(outMap) == 0 {
+		log.Warn("value map from prometheus is %v, nodeName is %v, not match",
+			inMap, s.nodeNames)
+	}
+
+	return outMap
+}
+
+func (s *Service) SyncNetIO() error {
+	res, err := s.dao.QueryNetIO(model.NetIOTypeDown)
 	if err != nil {
 		log.Error("get netload from prom error: %v", err)
 		return err
 	}
 
 	// 过滤掉不符合的nodes，prom可能监控不在k8s集群中的node
-	nodeNames := s.nodeNames
-	netMap := make(map[string]int64)
-	for _, name := range nodeNames {
-		if netCap, ok := res[name]; ok {
-			netMap[name] = netCap
-		}
-	}
+	netMap := s.filterByNodeName(res)
 	if len(netMap) == 0 {
-		log.Error("netload from prometheus is %v, nodeName is %v, not match",
-			res, nodeNames)
 		return nil
 	}
 
-	err = s.dao.SetNetload(netMap)
+	err = s.dao.SetNetIO(netMap)
 	if err != nil {
-		log.Error("SetNetload error: %v", err)
+		log.Error("SetNetIO error: %v", err)
 		return err
 	}
 
 	return nil
+}
+
+// ParallelSyncInfo 并发获取CPU/Mem/DiskIO/NetIO信息
+func (s *Service) ParallelSyncInfo() error {
+	type innerFunc func() (map[string]int64, error)
+	funcArr := []innerFunc{s.dao.QueryMaxNetIO, s.dao.QueryMaxDiskIO, s.dao.QueryCPUUsage, s.dao.QueryMemUsage}
+
+	funcKeyMap := make(map[string]string)
+	var vkey string
+	for _, ff := range funcArr {
+		fName := runtime.FuncForPC(reflect.ValueOf(ff).Pointer()).Name()
+		if strings.Contains(fName, "QueryMaxNetIO") {
+			vkey = model.ResourceNetIOKey
+		} else if strings.Contains(fName, "QueryMaxDiskIO") {
+			vkey = model.ResourceDiskIOKey
+		} else if strings.Contains(fName, "QueryCPUUsage") {
+			vkey = model.ResourceCPUKey
+		} else {
+			vkey = model.ResourceMemKey
+		}
+
+		funcKeyMap[fName] = vkey
+	}
+
+	var wg sync.WaitGroup
+	var returnErr error
+	start := time.Now()
+	for i := range funcArr {
+		ff := funcArr[i]
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if returnErr != nil {
+				return
+			}
+			fName := runtime.FuncForPC(reflect.ValueOf(ff).Pointer()).Name()
+			resMap, err := ff()
+			if err != nil {
+				log.Error("[ParallelGetLoadInfo] %s error: %v", fName, err)
+				returnErr = paladin.ErrDifferentTypes
+				return
+			}
+
+			filtered := s.filterByNodeName(resMap)
+			err = s.dao.SetKV(funcKeyMap[fName], filtered)
+			if err != nil {
+				returnErr = err
+				log.Error("[ParallelGetLoadInfo] SetKV error: %v", err)
+			}
+		}()
+	}
+	/*wg.Add(1)
+	go func() {
+		defer wg.Done()
+		netIO, err := s.dao.QueryMaxNetIO()
+		if err != nil {
+			log.Error("[ParallelGetLoadInfo] QueryMaxNetIO error: %v", err)
+			return
+		}
+
+		filterIO := s.filterByNodeName(netIO)
+		err = s.dao.SetNetIO(filterIO)
+		if err != nil {
+			log.Error("[ParallelGetLoadInfo] SetNetIO error: %v", err)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		diskIO, err := s.dao.QueryMaxDiskIO()
+		if err != nil {
+			log.Error("[ParallelGetLoadInfo] QueryMaxDiskIO error: %v", err)
+			return
+		}
+
+		filterIO := s.filterByNodeName(diskIO)
+		err = s.dao.SetNetIO(filterIO)
+		if err != nil {
+			log.Error("[ParallelGetLoadInfo] SetNetIO error: %v", err)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		cpuUsage, err := s.dao.QueryCPUUsage()
+		if err != nil {
+			log.Error("[ParallelGetLoadInfo] QueryCPUUsage error: %v", err)
+			return
+		}
+
+		filtered := s.filterByNodeName(cpuUsage)
+		err = s.dao.SetNetIO(filtered)
+		if err != nil {
+			log.Error("[ParallelGetLoadInfo] QueryCPUUsage error: %v", err)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		memUsage, err := s.dao.QueryMemUsage()
+		if err != nil {
+			log.Error("[ParallelGetLoadInfo] QueryMemUsage error: %v", err)
+			return
+		}
+
+		filtered := s.filterByNodeName(memUsage)
+		err = s.dao.SetNetIO(filtered)
+		if err != nil {
+			log.Error("[ParallelGetLoadInfo] QueryMemUsage error: %v", err)
+		}
+	}()*/
+
+	wg.Wait()
+	costTime := time.Now().Sub(start).String()
+	log.Info("sync dynamic info with %s", costTime)
+	return returnErr
 }

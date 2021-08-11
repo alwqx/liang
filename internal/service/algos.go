@@ -16,7 +16,7 @@ import (
 func (s *Service) Prioritize(args *extenderv1.ExtenderArgs) *extenderv1.HostPriorityList {
 	bnp := BalanceNetloadPriority{}
 	// 获取curMap
-	curMap, err := s.dao.GetNetload()
+	curMap, err := s.dao.GetNetIO()
 	if err != nil || len(curMap) == 0 {
 		log.Error("Prioritize: get empty curMap %v or run into error: %v",
 			curMap, err)
@@ -50,7 +50,7 @@ func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMa
 		neededMap[k] = vInt
 	}
 
-	netNeed := neededMap[model.ResourceNetloadKey] * model.KbitPS
+	netNeed := neededMap[model.ResourceNetIOKey] * model.KbitPS
 	validNames := make([]string, 0)
 	curArr := make([]float64, 0)
 	capArr := make([]float64, 0)
@@ -184,4 +184,15 @@ func (algo *BalanceNetloadPriority) BNPScore(nodeNames []string, needed int64, c
 
 	log.V(3).Info("scoreArr: %v", scoreArr)
 	return scoreArr
+}
+
+// CMDNAlgo
+type CMDNAlgo struct{}
+
+func (cmda *CMDNAlgo) Score(pod *v1.Pod, nodeNames []string, curMap map[string]int64, capMap map[string]int64) extenderv1.HostPriorityList {
+	return extenderv1.HostPriorityList{}
+}
+
+func (cmda *CMDNAlgo) CMDNScore() {
+	return
 }

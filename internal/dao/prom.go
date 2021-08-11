@@ -3,6 +3,7 @@ package dao
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	liangModel "liang/internal/model"
@@ -60,19 +61,7 @@ func (d *dao) QueryDemo() {
 
 }
 
-// QueryNetIO 获取网络负载，根据参数决定是下载负载还是上传负载
-func (d *dao) QueryNetIO(bwType string) (map[string]int64, error) {
-	var promQL string
-	if bwType == liangModel.BwTypeDown {
-		promQL = `max(irate(node_network_receive_bytes_total[30s])*8/1024) by (job)`
-	} else {
-		promQL = `max(irate(node_network_transmit_bytes_total[30s])*8/1024) by (job)`
-	}
-	err, result := d.promDao.ExecPromQL(promQL)
-	if err != nil {
-		return nil, err
-	}
-
+func (d *dao) parsePromResultInt64(result model.Value, base int) (map[string]int64, error) {
 	vectorValue, ok := result.(model.Vector)
 	if !ok {
 		err := fmt.Errorf("type of result not %T, get %T", model.Vector{}, result)
@@ -82,9 +71,115 @@ func (d *dao) QueryNetIO(bwType string) (map[string]int64, error) {
 	resMap := make(map[string]int64)
 	for i := 0; i < len(vectorValue); i++ {
 		tmp := vectorValue[i]
-		// TODO: 确认下这里为什么要除以10？
-		resMap[string(tmp.Metric["job"])] = int64(tmp.Value)
+		tmpv := float64(tmp.Value)
+		if base > 1 {
+			resMap[string(tmp.Metric["job"])] = int64(math.Round(tmpv * float64(base)))
+		} else {
+			resMap[string(tmp.Metric["job"])] = int64(math.Round(tmpv))
+		}
 	}
 
-	return resMap, err
+	return resMap, nil
+}
+
+func (d *dao) parsePromResultFloat64(result model.Value) (map[string]float64, error) {
+	vectorValue, ok := result.(model.Vector)
+	if !ok {
+		err := fmt.Errorf("type of result not %T, get %T", model.Vector{}, result)
+		return nil, err
+	}
+
+	resMap := make(map[string]float64)
+	for i := 0; i < len(vectorValue); i++ {
+		tmp := vectorValue[i]
+		resMap[string(tmp.Metric["job"])] = float64(tmp.Value)
+	}
+
+	return resMap, nil
+}
+
+// QueryNetIO 获取网络负载，根据参数决定是下载负载还是上传负载
+// 单位 kbit/s
+func (d *dao) QueryNetIO(bwType string) (map[string]int64, error) {
+	var promQL string
+	if bwType == liangModel.NetIOTypeDown {
+		promQL = `max(irate(node_network_receive_bytes_total[30s])*8/1000) by (job)`
+	} else {
+		promQL = `max(irate(node_network_transmit_bytes_total[30s])*8/1000) by (job)`
+	}
+	err, result := d.promDao.ExecPromQL(promQL)
+	if err != nil {
+		return nil, err
+	}
+
+	return d.parsePromResultInt64(result, 1)
+}
+
+// QueryMaxNetIO 查询上行/下行中最大网络IO
+// 单位 kbit/s
+func (d *dao) QueryMaxNetIO() (map[string]int64, error) {
+	promQL := `(max(irate(node_network_receive_bytes_total[30s])*8/1000) by (job)) > (max(irate(node_network_transmit_bytes_total[30s])*8/1024) by (job)) or (max(irate(node_network_transmit_bytes_total[30s])*8/1024) by (job))`
+	err, result := d.promDao.ExecPromQL(promQL)
+	if err != nil {
+		return nil, err
+	}
+
+	return d.parsePromResultInt64(result, 1)
+}
+
+// QueryDiskIO 查询Prom上机器的DiskIO
+// 单位byte/s 或者 B/s
+func (d *dao) QueryDiskIO(diskType string) (map[string]int64, error) {
+	var promQL string
+	if diskType == liangModel.DiskIOTypeWrite {
+		promQL = `max(irate(node_disk_written_bytes_total[30s])) by (job)`
+	} else {
+		promQL = `max(irate(node_disk_read_bytes_total[30s])) by (job)`
+	}
+
+	err, result := d.promDao.ExecPromQL(promQL)
+	if err != nil {
+		return nil, err
+	}
+
+	return d.parsePromResultInt64(result, 1)
+}
+
+// QueryMaxDiskIO 查询读/写中最大磁盘IO
+func (d *dao) QueryMaxDiskIO() (map[string]int64, error) {
+	promQL := `(max(irate(node_disk_written_bytes_total[30s])) by (job)) > (max(irate(node_disk_read_bytes_total[30s])) by (job)) or (max(irate(node_disk_read_bytes_total[30s])) by (job))`
+	err, result := d.promDao.ExecPromQL(promQL)
+	if err != nil {
+		return nil, err
+	}
+
+	return d.parsePromResultInt64(result, 1)
+}
+
+// QueryCPUUsage 查询Prom上机器的CPU使用率
+// 取4位有效数字后转换成int64，相比float64满足精度的前提下提高计算速度
+// e.g.: 0.012->12 23.453453245->2345
+func (d *dao) QueryCPUUsage() (map[string]int64, error) {
+	promQL := `(1 - avg(rate(node_cpu_seconds_total{mode="idle"}[30s])) by (job))`
+
+	err, result := d.promDao.ExecPromQL(promQL)
+	if err != nil {
+		return nil, err
+	}
+
+	return d.parsePromResultInt64(result, 100)
+}
+
+// QueryMemUsage 查询Prom上机器的内存使用率
+// 取4位有效数字后转换成int64，相比float64满足精度的前提下提高计算速度
+// e.g.: 0.012->12 23.453453245->2345
+func (d *dao) QueryMemUsage() (map[string]int64, error) {
+	promQL := `(1 - (node_memory_MemAvailable_bytes / (node_memory_MemTotal_bytes)))`
+
+	err, result := d.promDao.ExecPromQL(promQL)
+	if err != nil {
+		return nil, err
+	}
+
+	return d.parsePromResultInt64(result, 100)
 }

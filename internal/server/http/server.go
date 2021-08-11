@@ -45,6 +45,7 @@ func initRouter(e *bm.Engine) {
 		g.POST("/prioritizeVerb", Prioritize)
 		g.GET("/test/default", PromDemo)
 		g.GET("/test/netbw", QueryNetIO)
+		g.GET("/test/local", QueryAllLocal)
 	}
 }
 
@@ -116,7 +117,7 @@ func QueryNetIO(c *bm.Context) {
 		return
 	}
 
-	res, err := svc.QueryNetIO(bwType)
+	netIO, err := svc.QueryNetIO(bwType)
 	if err != nil {
 		c.JSONMap(map[string]interface{}{
 			"message": err.Error(),
@@ -124,5 +125,57 @@ func QueryNetIO(c *bm.Context) {
 		return
 	}
 
+	diskIO, err := svc.QueryDiskIO("write")
+	if err != nil {
+		c.JSONMap(map[string]interface{}{
+			"message": err.Error(),
+		}, ecode.ServerErr)
+		return
+	}
+
+	maxDiskIO, err := svc.QueryMaxDiskIO()
+	if err != nil {
+		c.JSONMap(map[string]interface{}{
+			"message": err.Error(),
+		}, ecode.ServerErr)
+		return
+	}
+
+	maxNetIO, err := svc.QueryMaxNetIO()
+	if err != nil {
+		c.JSONMap(map[string]interface{}{
+			"message": err.Error(),
+		}, ecode.ServerErr)
+		return
+	}
+
+	cpuUsage, err := svc.QueryCPUUsage()
+	if err != nil {
+		c.JSONMap(map[string]interface{}{
+			"message": err.Error(),
+		}, ecode.ServerErr)
+		return
+	}
+
+	memUsage, err := svc.QueryMemUsage()
+	if err != nil {
+		c.JSONMap(map[string]interface{}{
+			"message": err.Error(),
+		}, ecode.ServerErr)
+		return
+	}
+
+	c.JSONMap(map[string]interface{}{
+		"net_io":      netIO,
+		"max_net_io":  maxNetIO,
+		"disk_io":     diskIO,
+		"max_disk_io": maxDiskIO,
+		"cpu_usage":   cpuUsage,
+		"mem_usage":   memUsage,
+	}, ecode.OK)
+}
+
+func QueryAllLocal(c *bm.Context) {
+	res, _ := svc.GetPromInfo()
 	c.JSON(res, ecode.OK)
 }
