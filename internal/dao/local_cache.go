@@ -69,3 +69,33 @@ func (d *dao) SetMemUsage(memUsage map[string]int64) error {
 func (d *dao) GetMemUsage() (map[string]int64, error) {
 	return d.innerGet(model.ResourceMemKey)
 }
+
+func (d *dao) GetAllInfo() (map[string](map[string]int64), error) {
+	var (
+		netIO, diskIO, cpuUsage, memUsage map[string]int64
+		err                               error
+	)
+	netIO, err = d.GetNetIO()
+	if err != nil {
+		return nil, err
+	}
+	diskIO, err = d.GetDiskIO()
+	if err != nil {
+		return nil, err
+	}
+	cpuUsage, err = d.GetCPUUsage()
+	if err != nil {
+		return nil, err
+	}
+	memUsage, err = d.GetMemUsage()
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string](map[string]int64){
+		"net_io":    netIO,
+		"disk_io":   diskIO,
+		"cpu_usage": cpuUsage,
+		"mem_usage": memUsage,
+	}, nil
+}

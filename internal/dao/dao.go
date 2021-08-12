@@ -19,16 +19,18 @@ type Dao interface {
 	Close()
 	Ping(ctx context.Context) (err error)
 
+	// prometheus related interface
+	RequestPromDemo()
+	RequestPromMaxDiskIO() (map[string]int64, error)
+	RequestPromMaxNetIO() (map[string]int64, error)
+	RequestPromNetIO(bwType string) (map[string]int64, error)
+	RequestPromDiskIO(diskType string) (map[string]int64, error)
+	RequestPromCPUUsage() (map[string]int64, error)
+	RequestPromMemUsage() (map[string]int64, error)
+
+	// local KV cache interface
 	SetKV(k string, v interface{}) error
-
-	QueryDemo()
-	QueryMaxDiskIO() (map[string]int64, error)
-	QueryMaxNetIO() (map[string]int64, error)
-	QueryNetIO(bwType string) (map[string]int64, error)
-	QueryDiskIO(diskType string) (map[string]int64, error)
-	QueryCPUUsage() (map[string]int64, error)
-	QueryMemUsage() (map[string]int64, error)
-
+	GetAllInfo() (map[string](map[string]int64), error)
 	SetNetIO(netload map[string]int64) error
 	GetNetIO() (map[string]int64, error)
 }

@@ -54,7 +54,7 @@ func (promDao *PromDao) ExecPromQL(promQL string) (error, model.Value) {
 	return nil, result
 }
 
-func (d *dao) QueryDemo() {
+func (d *dao) RequestPromDemo() {
 	// d.promDao.ExecPromQL("up")
 	// d.promDao.ExecPromQL(`increase(node_network_receive_bytes_total{device=~"eth0"}[30s])`)
 	d.promDao.ExecPromQL(`max(irate(node_network_receive_bytes_total[30s])*8/1024) by (job)`)
@@ -98,9 +98,9 @@ func (d *dao) parsePromResultFloat64(result model.Value) (map[string]float64, er
 	return resMap, nil
 }
 
-// QueryNetIO 获取网络负载，根据参数决定是下载负载还是上传负载
+// RequestPromNetIO 获取网络负载，根据参数决定是下载负载还是上传负载
 // 单位 kbit/s
-func (d *dao) QueryNetIO(bwType string) (map[string]int64, error) {
+func (d *dao) RequestPromNetIO(bwType string) (map[string]int64, error) {
 	var promQL string
 	if bwType == liangModel.NetIOTypeDown {
 		promQL = `max(irate(node_network_receive_bytes_total[30s])*8/1000) by (job)`
@@ -115,9 +115,9 @@ func (d *dao) QueryNetIO(bwType string) (map[string]int64, error) {
 	return d.parsePromResultInt64(result, 1)
 }
 
-// QueryMaxNetIO 查询上行/下行中最大网络IO
+// RequestPromMaxNetIO 查询上行/下行中最大网络IO
 // 单位 kbit/s
-func (d *dao) QueryMaxNetIO() (map[string]int64, error) {
+func (d *dao) RequestPromMaxNetIO() (map[string]int64, error) {
 	promQL := `(max(irate(node_network_receive_bytes_total[30s])*8/1000) by (job)) > (max(irate(node_network_transmit_bytes_total[30s])*8/1024) by (job)) or (max(irate(node_network_transmit_bytes_total[30s])*8/1024) by (job))`
 	err, result := d.promDao.ExecPromQL(promQL)
 	if err != nil {
@@ -127,9 +127,9 @@ func (d *dao) QueryMaxNetIO() (map[string]int64, error) {
 	return d.parsePromResultInt64(result, 1)
 }
 
-// QueryDiskIO 查询Prom上机器的DiskIO
+// RequestPromDiskIO 查询Prom上机器的DiskIO
 // 单位byte/s 或者 B/s
-func (d *dao) QueryDiskIO(diskType string) (map[string]int64, error) {
+func (d *dao) RequestPromDiskIO(diskType string) (map[string]int64, error) {
 	var promQL string
 	if diskType == liangModel.DiskIOTypeWrite {
 		promQL = `max(irate(node_disk_written_bytes_total[30s])) by (job)`
@@ -145,8 +145,8 @@ func (d *dao) QueryDiskIO(diskType string) (map[string]int64, error) {
 	return d.parsePromResultInt64(result, 1)
 }
 
-// QueryMaxDiskIO 查询读/写中最大磁盘IO
-func (d *dao) QueryMaxDiskIO() (map[string]int64, error) {
+// RequestPromMaxDiskIO 查询读/写中最大磁盘IO
+func (d *dao) RequestPromMaxDiskIO() (map[string]int64, error) {
 	promQL := `(max(irate(node_disk_written_bytes_total[30s])) by (job)) > (max(irate(node_disk_read_bytes_total[30s])) by (job)) or (max(irate(node_disk_read_bytes_total[30s])) by (job))`
 	err, result := d.promDao.ExecPromQL(promQL)
 	if err != nil {
@@ -156,10 +156,10 @@ func (d *dao) QueryMaxDiskIO() (map[string]int64, error) {
 	return d.parsePromResultInt64(result, 1)
 }
 
-// QueryCPUUsage 查询Prom上机器的CPU使用率
+// RequestPromCPUUsage 查询Prom上机器的CPU使用率
 // 取4位有效数字后转换成int64，相比float64满足精度的前提下提高计算速度
 // e.g.: 0.012->12 23.453453245->2345
-func (d *dao) QueryCPUUsage() (map[string]int64, error) {
+func (d *dao) RequestPromCPUUsage() (map[string]int64, error) {
 	promQL := `(1 - avg(rate(node_cpu_seconds_total{mode="idle"}[30s])) by (job))`
 
 	err, result := d.promDao.ExecPromQL(promQL)
@@ -170,10 +170,10 @@ func (d *dao) QueryCPUUsage() (map[string]int64, error) {
 	return d.parsePromResultInt64(result, 100)
 }
 
-// QueryMemUsage 查询Prom上机器的内存使用率
+// RequestPromMemUsage 查询Prom上机器的内存使用率
 // 取4位有效数字后转换成int64，相比float64满足精度的前提下提高计算速度
 // e.g.: 0.012->12 23.453453245->2345
-func (d *dao) QueryMemUsage() (map[string]int64, error) {
+func (d *dao) RequestPromMemUsage() (map[string]int64, error) {
 	promQL := `(1 - (node_memory_MemAvailable_bytes / (node_memory_MemTotal_bytes)))`
 
 	err, result := d.promDao.ExecPromQL(promQL)

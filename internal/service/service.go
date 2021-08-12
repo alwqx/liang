@@ -114,14 +114,35 @@ func (s *Service) Close() {
 
 // PromDemo demo of prometheus api
 func (s *Service) PromDemo() {
-	s.dao.QueryDemo()
+	s.dao.RequestPromDemo()
 }
 
-func (s *Service) GetPromInfo() (map[string](map[string]int64), error) {
-	netIO, _ := s.dao.QueryMaxNetIO()
-	diskIO, _ := s.dao.QueryMaxDiskIO()
-	cpuUsage, _ := s.dao.QueryCPUUsage()
-	memUsage, _ := s.dao.QueryMemUsage()
+func (s *Service) GetAllCache() (map[string](map[string]int64), error) {
+	return s.dao.GetAllInfo()
+}
+
+// RequestPromInfo 从本地缓存获取diskIO/netIO/CPU Usage/Mem Usage信息
+func (s *Service) RequestPromInfo() (map[string](map[string]int64), error) {
+	var (
+		netIO, diskIO, cpuUsage, memUsage map[string]int64
+		err                               error
+	)
+	netIO, err = s.dao.RequestPromMaxNetIO()
+	if err != nil {
+		return nil, err
+	}
+	diskIO, err = s.dao.RequestPromMaxDiskIO()
+	if err != nil {
+		return nil, err
+	}
+	cpuUsage, err = s.dao.RequestPromCPUUsage()
+	if err != nil {
+		return nil, err
+	}
+	memUsage, err = s.dao.RequestPromMemUsage()
+	if err != nil {
+		return nil, err
+	}
 
 	return map[string](map[string]int64){
 		"net_io":    netIO,
@@ -131,28 +152,28 @@ func (s *Service) GetPromInfo() (map[string](map[string]int64), error) {
 	}, nil
 }
 
-func (s *Service) QueryNetIO(bwType string) (map[string]int64, error) {
-	return s.dao.QueryNetIO(bwType)
+func (s *Service) RequestPromNetIO(bwType string) (map[string]int64, error) {
+	return s.dao.RequestPromNetIO(bwType)
 }
 
-func (s *Service) QueryDiskIO(diskType string) (map[string]int64, error) {
-	return s.dao.QueryDiskIO(diskType)
+func (s *Service) RequestPromDiskIO(diskType string) (map[string]int64, error) {
+	return s.dao.RequestPromDiskIO(diskType)
 }
 
-func (s *Service) QueryMaxNetIO() (map[string]int64, error) {
-	return s.dao.QueryMaxNetIO()
+func (s *Service) RequestPromMaxNetIO() (map[string]int64, error) {
+	return s.dao.RequestPromMaxNetIO()
 }
 
-func (s *Service) QueryMaxDiskIO() (map[string]int64, error) {
-	return s.dao.QueryMaxDiskIO()
+func (s *Service) RequestPromMaxDiskIO() (map[string]int64, error) {
+	return s.dao.RequestPromMaxDiskIO()
 }
 
-func (s *Service) QueryCPUUsage() (map[string]int64, error) {
-	return s.dao.QueryCPUUsage()
+func (s *Service) RequestPromCPUUsage() (map[string]int64, error) {
+	return s.dao.RequestPromCPUUsage()
 }
 
-func (s *Service) QueryMemUsage() (map[string]int64, error) {
-	return s.dao.QueryMemUsage()
+func (s *Service) RequestPromMemUsage() (map[string]int64, error) {
+	return s.dao.RequestPromMemUsage()
 }
 
 // filterByNodeName 根据node name过滤结果
@@ -174,7 +195,7 @@ func (s *Service) filterByNodeName(inMap map[string]int64) map[string]int64 {
 }
 
 func (s *Service) SyncNetIO() error {
-	res, err := s.dao.QueryNetIO(model.NetIOTypeDown)
+	res, err := s.dao.RequestPromNetIO(model.NetIOTypeDown)
 	if err != nil {
 		log.Error("get netload from prom error: %v", err)
 		return err
@@ -198,17 +219,17 @@ func (s *Service) SyncNetIO() error {
 // ParallelSyncInfo 并发获取CPU/Mem/DiskIO/NetIO信息
 func (s *Service) ParallelSyncInfo() error {
 	type innerFunc func() (map[string]int64, error)
-	funcArr := []innerFunc{s.dao.QueryMaxNetIO, s.dao.QueryMaxDiskIO, s.dao.QueryCPUUsage, s.dao.QueryMemUsage}
+	funcArr := []innerFunc{s.dao.RequestPromMaxNetIO, s.dao.RequestPromMaxDiskIO, s.dao.RequestPromCPUUsage, s.dao.RequestPromMemUsage}
 
 	funcKeyMap := make(map[string]string)
 	var vkey string
 	for _, ff := range funcArr {
 		fName := runtime.FuncForPC(reflect.ValueOf(ff).Pointer()).Name()
-		if strings.Contains(fName, "QueryMaxNetIO") {
+		if strings.Contains(fName, "RequestPromMaxNetIO") {
 			vkey = model.ResourceNetIOKey
-		} else if strings.Contains(fName, "QueryMaxDiskIO") {
+		} else if strings.Contains(fName, "RequestPromMaxDiskIO") {
 			vkey = model.ResourceDiskIOKey
-		} else if strings.Contains(fName, "QueryCPUUsage") {
+		} else if strings.Contains(fName, "RequestPromCPUUsage") {
 			vkey = model.ResourceCPUKey
 		} else {
 			vkey = model.ResourceMemKey
@@ -247,9 +268,9 @@ func (s *Service) ParallelSyncInfo() error {
 	/*wg.Add(1)
 	go func() {
 		defer wg.Done()
-		netIO, err := s.dao.QueryMaxNetIO()
+		netIO, err := s.dao.RequestPromMaxNetIO()
 		if err != nil {
-			log.Error("[ParallelGetLoadInfo] QueryMaxNetIO error: %v", err)
+			log.Error("[ParallelGetLoadInfo] RequestPromMaxNetIO error: %v", err)
 			return
 		}
 
@@ -263,9 +284,9 @@ func (s *Service) ParallelSyncInfo() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		diskIO, err := s.dao.QueryMaxDiskIO()
+		diskIO, err := s.dao.RequestPromMaxDiskIO()
 		if err != nil {
-			log.Error("[ParallelGetLoadInfo] QueryMaxDiskIO error: %v", err)
+			log.Error("[ParallelGetLoadInfo] RequestPromMaxDiskIO error: %v", err)
 			return
 		}
 
@@ -279,37 +300,37 @@ func (s *Service) ParallelSyncInfo() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		cpuUsage, err := s.dao.QueryCPUUsage()
+		cpuUsage, err := s.dao.RequestPromCPUUsage()
 		if err != nil {
-			log.Error("[ParallelGetLoadInfo] QueryCPUUsage error: %v", err)
+			log.Error("[ParallelGetLoadInfo] RequestPromCPUUsage error: %v", err)
 			return
 		}
 
 		filtered := s.filterByNodeName(cpuUsage)
 		err = s.dao.SetNetIO(filtered)
 		if err != nil {
-			log.Error("[ParallelGetLoadInfo] QueryCPUUsage error: %v", err)
+			log.Error("[ParallelGetLoadInfo] RequestPromCPUUsage error: %v", err)
 		}
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		memUsage, err := s.dao.QueryMemUsage()
+		memUsage, err := s.dao.RequestPromMemUsage()
 		if err != nil {
-			log.Error("[ParallelGetLoadInfo] QueryMemUsage error: %v", err)
+			log.Error("[ParallelGetLoadInfo] RequestPromMemUsage error: %v", err)
 			return
 		}
 
 		filtered := s.filterByNodeName(memUsage)
 		err = s.dao.SetNetIO(filtered)
 		if err != nil {
-			log.Error("[ParallelGetLoadInfo] QueryMemUsage error: %v", err)
+			log.Error("[ParallelGetLoadInfo] RequestPromMemUsage error: %v", err)
 		}
 	}()*/
 
 	wg.Wait()
 	costTime := time.Now().Sub(start).String()
-	log.Info("sync dynamic info with %s", costTime)
+	log.Info("sync dynamic info costs %s", costTime)
 	return returnErr
 }

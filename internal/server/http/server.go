@@ -2,7 +2,6 @@ package http
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"liang/internal/model"
@@ -44,8 +43,8 @@ func initRouter(e *bm.Engine) {
 		g.GET("/start", howToStart)
 		g.POST("/prioritizeVerb", Prioritize)
 		g.GET("/test/default", PromDemo)
-		g.GET("/test/netbw", QueryNetIO)
-		g.GET("/test/local", QueryAllLocal)
+		g.GET("/test/prom", RequestPromInfo)
+		g.GET("/test/cache", QueryAllCache)
 	}
 }
 
@@ -107,75 +106,34 @@ func PromDemo(c *bm.Context) {
 	c.JSON(nil, ecode.OK)
 }
 
-func QueryNetIO(c *bm.Context) {
-	bwType := c.Request.URL.Query().Get("bw_type")
-	if bwType == "" {
-		err := fmt.Errorf("bw_type should not be empty")
-		c.JSONMap(map[string]interface{}{
-			"message": err.Error(),
-		}, ecode.RequestErr)
-		return
-	}
+func RequestPromInfo(c *bm.Context) {
+	// bwType := c.Request.URL.Query().Get("bw_type")
+	// if bwType == "" {
+	// 	err := fmt.Errorf("bw_type should not be empty")
+	// 	c.JSONMap(map[string]interface{}{
+	// 		"message": err.Error(),
+	// 	}, ecode.RequestErr)
+	// 	return
+	// }
 
-	netIO, err := svc.QueryNetIO(bwType)
+	res, err := svc.RequestPromInfo()
 	if err != nil {
 		c.JSONMap(map[string]interface{}{
 			"message": err.Error(),
 		}, ecode.ServerErr)
 		return
 	}
-
-	diskIO, err := svc.QueryDiskIO("write")
-	if err != nil {
-		c.JSONMap(map[string]interface{}{
-			"message": err.Error(),
-		}, ecode.ServerErr)
-		return
-	}
-
-	maxDiskIO, err := svc.QueryMaxDiskIO()
-	if err != nil {
-		c.JSONMap(map[string]interface{}{
-			"message": err.Error(),
-		}, ecode.ServerErr)
-		return
-	}
-
-	maxNetIO, err := svc.QueryMaxNetIO()
-	if err != nil {
-		c.JSONMap(map[string]interface{}{
-			"message": err.Error(),
-		}, ecode.ServerErr)
-		return
-	}
-
-	cpuUsage, err := svc.QueryCPUUsage()
-	if err != nil {
-		c.JSONMap(map[string]interface{}{
-			"message": err.Error(),
-		}, ecode.ServerErr)
-		return
-	}
-
-	memUsage, err := svc.QueryMemUsage()
-	if err != nil {
-		c.JSONMap(map[string]interface{}{
-			"message": err.Error(),
-		}, ecode.ServerErr)
-		return
-	}
-
-	c.JSONMap(map[string]interface{}{
-		"net_io":      netIO,
-		"max_net_io":  maxNetIO,
-		"disk_io":     diskIO,
-		"max_disk_io": maxDiskIO,
-		"cpu_usage":   cpuUsage,
-		"mem_usage":   memUsage,
-	}, ecode.OK)
+	c.JSON(res, ecode.OK)
 }
 
-func QueryAllLocal(c *bm.Context) {
-	res, _ := svc.GetPromInfo()
+func QueryAllCache(c *bm.Context) {
+	res, err := svc.RequestPromInfo()
+	if err != nil {
+		c.JSONMap(map[string]interface{}{
+			"message": err.Error(),
+		}, ecode.ServerErr)
+		return
+	}
+
 	c.JSON(res, ecode.OK)
 }
