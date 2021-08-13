@@ -9,9 +9,9 @@ const (
 	ResourceMemKey    string = "LiangMem"
 
 	BaseBitPS = 1
-	KbitPS    = BaseBitPS * 1024
-	MbitPS    = KbitPS * 1024
-	GbitPS    = MbitPS * 1024
+	KbitPS    = BaseBitPS * 1000
+	MbitPS    = KbitPS * 1000
+	GbitPS    = MbitPS * 1000
 
 	MaxNodeScore = 100
 	MinNodeScore = 0
@@ -21,6 +21,9 @@ const (
 	NetIOTypeDown   = "down"
 	DiskIOTypeWrite = "write"
 	DiskIOTypeRead  = "read"
+
+	// cpu/mem使用率 指标阈值上限，乘以100的结果，80表示80%
+	UsageUpperLimit = 80
 )
 
 // Kratos hello kratos.

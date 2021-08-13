@@ -265,69 +265,6 @@ func (s *Service) ParallelSyncInfo() error {
 			}
 		}()
 	}
-	/*wg.Add(1)
-	go func() {
-		defer wg.Done()
-		netIO, err := s.dao.RequestPromMaxNetIO()
-		if err != nil {
-			log.Error("[ParallelGetLoadInfo] RequestPromMaxNetIO error: %v", err)
-			return
-		}
-
-		filterIO := s.filterByNodeName(netIO)
-		err = s.dao.SetNetIO(filterIO)
-		if err != nil {
-			log.Error("[ParallelGetLoadInfo] SetNetIO error: %v", err)
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		diskIO, err := s.dao.RequestPromMaxDiskIO()
-		if err != nil {
-			log.Error("[ParallelGetLoadInfo] RequestPromMaxDiskIO error: %v", err)
-			return
-		}
-
-		filterIO := s.filterByNodeName(diskIO)
-		err = s.dao.SetNetIO(filterIO)
-		if err != nil {
-			log.Error("[ParallelGetLoadInfo] SetNetIO error: %v", err)
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		cpuUsage, err := s.dao.RequestPromCPUUsage()
-		if err != nil {
-			log.Error("[ParallelGetLoadInfo] RequestPromCPUUsage error: %v", err)
-			return
-		}
-
-		filtered := s.filterByNodeName(cpuUsage)
-		err = s.dao.SetNetIO(filtered)
-		if err != nil {
-			log.Error("[ParallelGetLoadInfo] RequestPromCPUUsage error: %v", err)
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		memUsage, err := s.dao.RequestPromMemUsage()
-		if err != nil {
-			log.Error("[ParallelGetLoadInfo] RequestPromMemUsage error: %v", err)
-			return
-		}
-
-		filtered := s.filterByNodeName(memUsage)
-		err = s.dao.SetNetIO(filtered)
-		if err != nil {
-			log.Error("[ParallelGetLoadInfo] RequestPromMemUsage error: %v", err)
-		}
-	}()*/
 
 	wg.Wait()
 	costTime := time.Now().Sub(start).String()

@@ -1,9 +1,6 @@
 package service
 
 import (
-	"strconv"
-	"strings"
-
 	"liang/internal/model"
 
 	"github.com/go-kratos/kratos/pkg/log"
@@ -13,19 +10,18 @@ import (
 	extenderv1 "k8s.io/kube-scheduler/extender/v1"
 )
 
-func (s *Service) Prioritize(args *extenderv1.ExtenderArgs) *extenderv1.HostPriorityList {
-	bnp := BalanceNetloadPriority{}
-	// 获取curMap
-	curMap, err := s.dao.GetNetIO()
-	if err != nil || len(curMap) == 0 {
-		log.Error("Prioritize: get empty curMap %v or run into error: %v",
-			curMap, err)
-		return nil
+// GetDefaultScore 返回默认评分
+func GetDefaultScore(names []string) extenderv1.HostPriorityList {
+	num := len(names)
+	res := make(extenderv1.HostPriorityList, num)
+	for i := 0; i < num; i++ {
+		res[i] = extenderv1.HostPriority{
+			Host:  names[i],
+			Score: model.MinNodeScore,
+		}
 	}
-	res := bnp.Score(args.Pod, *args.NodeNames, curMap, s.netBwMap)
-	log.V(3).Info("score result of BNP is: %#v", res)
 
-	return &res
+	return res
 }
 
 type BalanceNetloadPriority struct{}
@@ -35,64 +31,16 @@ type BalanceNetloadPriority struct{}
 // 进行计算，然后根据结果对Node打分，注意这里的打分不需要加上权重，权重有scheduler根据
 // HTTPExtender统一分配一个直接的权重
 // 动态可压缩资源在Pod.MetaData的Annotation中以map形式定义
-func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMap map[string]int64, capMap map[string]int64) extenderv1.HostPriorityList {
-	neededMap := make(map[string]int64)
-	for k, v := range pod.Annotations {
-		if !strings.Contains(k, model.PodAnnotationKey) {
-			continue
-		}
-		vInt, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			log.Error("parse %s to int64 error:%v", v, err)
-			continue
-		}
-
-		neededMap[k] = vInt
-	}
-
-	netNeed := neededMap[model.ResourceNetIOKey] * model.KbitPS
-	validNames := make([]string, 0)
-	curArr := make([]float64, 0)
-	capArr := make([]float64, 0)
-
+func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMap map[string]int64, capMap map[string]int64) (extenderv1.HostPriorityList, error) {
+	netNeed := GetPodNetIONeed(pod)
 	nodeNum := len(nodeNames)
-	for i := 0; i < nodeNum; i++ {
-		nodeName := nodeNames[i]
-		netCur, ok := curMap[nodeName]
-		if !ok {
-			log.Warn("current net info of node %s does not exist, skip", nodeName)
-			continue
-		}
-
-		netCap, ok1 := capMap[nodeName]
-		// 过滤掉不存在或者资源超出的情况
-		if !ok1 {
-			log.Warn("cap net info of node %s does not exist, skip", nodeName)
-			continue
-		}
-
-		if netCur+netNeed > netCap {
-			log.Warn("request net %d plus cur net %d overflow net cap %d, skip",
-				netNeed, netCur, netCap)
-			continue
-		}
-
-		validNames = append(validNames, nodeName)
-		curArr = append(curArr, float64(curMap[nodeName]))
-		capArr = append(capArr, float64(capMap[nodeName]))
-	}
+	validNames, curArr, capArr := FilterNodeByNet(nodeNames, netNeed, curMap, capMap)
 
 	// 没有一个node符合条件
 	if len(validNames) == 0 {
 		log.Warn("none nodes is valid, all nodes's score is 0")
-		scoreRes := make(extenderv1.HostPriorityList, nodeNum)
-		for i := 0; i < nodeNum; i++ {
-			nodeName := nodeNames[i]
-			scoreRes[i] = extenderv1.HostPriority{
-				Host:  nodeName,
-				Score: model.MinNodeScore,
-			}
-		}
+		scoreRes := GetDefaultScore(nodeNames)
+		return scoreRes, nil
 	}
 
 	scoreMap := algo.BNPScore(validNames, netNeed, curArr, capArr)
@@ -112,7 +60,7 @@ func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMa
 		}
 	}
 
-	return scoreRes
+	return scoreRes, nil
 }
 
 // BNPScore 内部评分函数
@@ -184,15 +132,4 @@ func (algo *BalanceNetloadPriority) BNPScore(nodeNames []string, needed int64, c
 
 	log.V(3).Info("scoreArr: %v", scoreArr)
 	return scoreArr
-}
-
-// CMDNAlgo
-type CMDNAlgo struct{}
-
-func (cmda *CMDNAlgo) Score(pod *v1.Pod, nodeNames []string, curMap map[string]int64, capMap map[string]int64) extenderv1.HostPriorityList {
-	return extenderv1.HostPriorityList{}
-}
-
-func (cmda *CMDNAlgo) CMDNScore() {
-	return
 }

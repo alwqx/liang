@@ -225,7 +225,7 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 			Expected: extenderv1.HostPriorityList{
 				extenderv1.HostPriority{Host: "node1", Score: 100},
 				extenderv1.HostPriority{Host: "node2", Score: 0},
-				extenderv1.HostPriority{Host: "node3", Score: 75},
+				extenderv1.HostPriority{Host: "node3", Score: 73},
 			},
 		},
 	}
@@ -233,7 +233,10 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 	BDPScore := BalanceNetloadPriority{}
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			res := BDPScore.Score(tc.Pod, tc.NodeNames, tc.CurMap, tc.CapMap)
+			res, err := BDPScore.Score(tc.Pod, tc.NodeNames, tc.CurMap, tc.CapMap)
+			if err != nil {
+				t.Errorf("test %s error: %v", tc.Name, err)
+			}
 			if len(res) != len(tc.Expected) {
 				t.Errorf("test %s, num of res %d and Expected %d not equal",
 					tc.Name, len(res), len(tc.Expected))

@@ -63,7 +63,7 @@ func howToStart(c *bm.Context) {
 	c.JSON(k, nil)
 }
 
-// Prioritize 对Pod和Nodes评分
+// Prioritize 根据Pod对Nodes评分
 func Prioritize(c *bm.Context) {
 	var args extenderv1.ExtenderArgs
 	// BindWith will process error
@@ -84,7 +84,14 @@ func Prioritize(c *bm.Context) {
 		args.NodeNames = &nodeNames
 	}
 
-	res := svc.Prioritize(&args)
+	res, err := svc.Prioritize(&args)
+	if err != nil {
+		c.JSONMap(map[string]interface{}{
+			"error": err.Error(),
+		}, ecode.ServerErr)
+		return
+	}
+
 	if res == nil {
 		res := make(extenderv1.HostPriorityList, 0, len(*args.NodeNames))
 		for _, name := range *args.NodeNames {

@@ -3,6 +3,7 @@ package dao
 import (
 	"errors"
 	"fmt"
+
 	"liang/internal/model"
 
 	"github.com/bluele/gcache"
@@ -93,9 +94,9 @@ func (d *dao) GetAllInfo() (map[string](map[string]int64), error) {
 	}
 
 	return map[string](map[string]int64){
-		"net_io":    netIO,
-		"disk_io":   diskIO,
-		"cpu_usage": cpuUsage,
-		"mem_usage": memUsage,
+		model.ResourceNetIOKey:  netIO,
+		model.ResourceDiskIOKey: diskIO,
+		model.ResourceCPUKey:    cpuUsage,
+		model.ResourceMemKey:    memUsage,
 	}, nil
 }
