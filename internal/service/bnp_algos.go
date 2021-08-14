@@ -32,6 +32,7 @@ type BalanceNetloadPriority struct{}
 // HTTPExtender统一分配一个直接的权重
 // 动态可压缩资源在Pod.MetaData的Annotation中以map形式定义
 func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMap map[string]int64, capMap map[string]int64) (extenderv1.HostPriorityList, error) {
+	log.V(5).Info("BalanceNetloadPriority Score - nodeNames: %v, curMap: %v, capMap: %v", nodeNames, curMap, capMap)
 	netNeed := GetPodNetIONeed(pod)
 	emptyScore := GetDefaultScore(nodeNames)
 	if netNeed == 0 {
@@ -70,6 +71,7 @@ func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMa
 // BNPScore 内部评分函数
 // needed 单位 Kbit/s, curMap、capMap单位Kbit/s
 func (algo *BalanceNetloadPriority) BNPScore(nodeNames []string, needed int64, curMap, capMap []float64) map[string]int64 {
+	log.V(5).Info("BalanceNetloadPriority BNPScore - nodeNames: %v, needed: %d, curArr: %v, capArr: %v", nodeNames, needed, curMap, capMap)
 	nodeNum := len(nodeNames)
 	// 如果needed为0，则BNP算法没有意义，所有节点评分为0
 	if needed == 0 {

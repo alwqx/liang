@@ -28,6 +28,8 @@ type Service struct {
 	cron      *cron3.Cron
 	netBwMap  map[string]int64 // 节点的网卡速度信息
 	nodeNames []string
+	topsisMin bool // 为true则要将topsis得到的结果翻转，评分越大，翻转后越小
+	useBNP    bool // 是否使用bnp算法
 }
 
 // New new a service and return.
@@ -39,6 +41,20 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 	s.cron = cron3.New(cron3.WithSeconds())
 	cf = s.Close
 	err = paladin.Watch("application.toml", s.ac)
+
+	var topsisMin, useBNP bool
+	topsisMin, err = s.ac.Get("topsisMin").Bool()
+	if err != nil {
+		return
+	}
+	s.topsisMin = topsisMin
+
+	useBNP, err = s.ac.Get("useBNP").Bool()
+	if err != nil {
+		return
+	}
+	s.useBNP = useBNP
+	log.V(5).Info("algo config - useBNP: %v, topsisMin: %v", useBNP, topsisMin)
 
 	var (
 		hosts  []string
@@ -144,10 +160,10 @@ func (s *Service) RequestPromInfo() (map[string](map[string]int64), error) {
 	}
 
 	return map[string](map[string]int64){
-		"net_io":    netIO,
-		"disk_io":   diskIO,
-		"cpu_usage": cpuUsage,
-		"mem_usage": memUsage,
+		model.ResourceNetIOKey:  netIO,
+		model.ResourceDiskIOKey: diskIO,
+		model.ResourceCPUKey:    cpuUsage,
+		model.ResourceMemKey:    memUsage,
 	}, nil
 }
 
@@ -267,6 +283,6 @@ func (s *Service) ParallelSyncInfo() error {
 
 	wg.Wait()
 	costTime := time.Now().Sub(start).String()
-	log.V(3).Info("sync dynamic info costs %s", costTime)
+	log.V(5).Info("sync dynamic info costs %s", costTime)
 	return returnErr
 }

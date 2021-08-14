@@ -134,7 +134,7 @@ func RequestPromInfo(c *bm.Context) {
 }
 
 func QueryAllCache(c *bm.Context) {
-	res, err := svc.RequestPromInfo()
+	res, err := svc.GetAllCache()
 	if err != nil {
 		c.JSONMap(map[string]interface{}{
 			"message": err.Error(),

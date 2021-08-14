@@ -4,16 +4,22 @@ promAddr = "http://39.105.5.227:9090"
 promBasicAuthUser = "admin"
 promBasicAuthPassword = "adminlwq"
 
-# 网卡对应的主机名
-#netbwMapKeys = ["node-cn2","k8s-master"]
 # 网卡速度带宽信息，单位Mbps
-#netbwMapValues = [204.8,1024.0]
+# 网卡对应的主机名
+netbwMapKeys = ["node-cn2","k8s-master"]
+netbwMapValues = [200.0, 500.0]
 
-netbwMapKeys = ["node1", "node2", "node3"]
-netbwMapValues = [1000.0, 1500.0, 2500.0]
+#netbwMapKeys = ["node1", "node2", "node3"]
+#netbwMapValues = [1000.0, 1500.0, 2500.0]
 
 # 本地缓存超时时间，默认30秒
 localCacheExpire = 30
 
 # 同步prom status时间间隔 cron表达式格式, "*/10 * * * * ?" 每10秒运行一次
 syncStatusInterval = "*/10 * * * * ?"
+
+# topsis算法评分是否反转
+topsisMin = true
+
+# 是否使用bnp算法
+useBNP = false

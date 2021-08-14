@@ -56,7 +56,7 @@ func (cmdn *CMDNPriority) Score(pod *v1.Pod, nodeNames []string, netCapMap map[s
 	for i := 0; i < col; i++ {
 		matrix.SetCol(i, colArr[i])
 	}
-	log.V(3).Info("origin resource and node matrix is: \n%v", mat.Formatted(matrix))
+	log.V(5).Info("origin resource and node matrix is: \n%v", mat.Formatted(matrix))
 
 	topScore, err := utils.CalcTOPSIS(matrix)
 	if err != nil {
@@ -73,7 +73,7 @@ func (cmdn *CMDNPriority) Score(pod *v1.Pod, nodeNames []string, netCapMap map[s
 		name := nodeNames[i]
 		score = 0
 		if ss, ok := scoreMap[name]; ok {
-			score = int64(math.Round(ss * 100.0))
+			score = int64(math.Round(ss * float64(model.MaxNodeScore)))
 		}
 		scoreRes[i] = extenderv1.HostPriority{
 			Host:  name,
