@@ -33,14 +33,18 @@ type BalanceNetloadPriority struct{}
 // 动态可压缩资源在Pod.MetaData的Annotation中以map形式定义
 func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMap map[string]int64, capMap map[string]int64) (extenderv1.HostPriorityList, error) {
 	netNeed := GetPodNetIONeed(pod)
+	emptyScore := GetDefaultScore(nodeNames)
+	if netNeed == 0 {
+		log.Warn("BalanceNetloadPriority-Score net need is %d, skip", netNeed)
+		return emptyScore, nil
+	}
 	nodeNum := len(nodeNames)
 	validNames, curArr, capArr := FilterNodeByNet(nodeNames, netNeed, curMap, capMap)
 
 	// 没有一个node符合条件
 	if len(validNames) == 0 {
 		log.Warn("none nodes is valid, all nodes's score is 0")
-		scoreRes := GetDefaultScore(nodeNames)
-		return scoreRes, nil
+		return emptyScore, nil
 	}
 
 	scoreMap := algo.BNPScore(validNames, netNeed, curArr, capArr)

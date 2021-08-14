@@ -142,6 +142,10 @@ func IsZeroArray(arr []float64) bool {
 }
 
 func IsMatrixEmpty(m *mat.Dense) bool {
+	if len(m.RawMatrix().Data) == 0 {
+		return true
+	}
+
 	row := m.RawMatrix().Rows
 	col := m.RawMatrix().Cols
 

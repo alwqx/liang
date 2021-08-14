@@ -41,8 +41,8 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 	err = paladin.Watch("application.toml", s.ac)
 
 	var (
-		hosts   []string
-		netLoad []float64
+		hosts  []string
+		netCap []float64
 	)
 	if err = s.ac.Get("netbwMapKeys").Slice(&hosts); err != nil {
 		log.Error("unmarshal config netbwMapKeys error: %v", err)
@@ -50,11 +50,11 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 	}
 	s.nodeNames = hosts
 
-	if err = s.ac.Get("netbwMapValues").Slice(&netLoad); err != nil {
+	if err = s.ac.Get("netbwMapValues").Slice(&netCap); err != nil {
 		log.Error("get slice config netbwMapValues error: %v", err)
 		return
 	}
-	keyLen, valueLen := len(hosts), len(netLoad)
+	keyLen, valueLen := len(hosts), len(netCap)
 	if keyLen != valueLen {
 		err = fmt.Errorf("len of netbwMapKeys(%d) and netbwMapValues(%d) not euqal", keyLen, valueLen)
 		return
@@ -63,9 +63,9 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 	netMap := make(map[string]int64)
 	for i := 0; i < keyLen; i++ {
 		// 内部计算单位统一为Kbit/s
-		netmp := int64(netLoad[i] * (model.MbitPS / 1024))
+		netmp := int64(netCap[i] * model.KbitPS)
 		if netmp == 0 {
-			err = fmt.Errorf("netload of %s is %f, should not be zero", hosts[i], netLoad[i])
+			err = fmt.Errorf("netload of %s is %f, should not be zero", hosts[i], netCap[i])
 		}
 		netMap[hosts[i]] = netmp
 	}
@@ -92,7 +92,6 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 			log.Error("%v", innerErr)
 			return
 		}
-		s.ParallelSyncInfo()
 	})
 	if err != nil {
 		log.Error("add sync prom status error: %v", err)
@@ -268,6 +267,6 @@ func (s *Service) ParallelSyncInfo() error {
 
 	wg.Wait()
 	costTime := time.Now().Sub(start).String()
-	log.Info("sync dynamic info costs %s", costTime)
+	log.V(3).Info("sync dynamic info costs %s", costTime)
 	return returnErr
 }
