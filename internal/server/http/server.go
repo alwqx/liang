@@ -73,7 +73,7 @@ func Prioritize(c *bm.Context) {
 
 	// print args info
 	jres, _ := json.Marshal(args)
-	log.V(5).Info("http Prioritize api - args is: \n%s", string(jres))
+	log.V(7).Info("http Prioritize api - args is: \n%s", string(jres))
 
 	// check args nodeNames, it may be nil
 	if args.NodeNames == nil {

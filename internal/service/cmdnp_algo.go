@@ -137,6 +137,7 @@ func GetPodNetIONeed(pod *v1.Pod) int64 {
 		netIO = vInt * model.KbitPS
 		break
 	}
+	log.V(3).Info("GetPodNetIONeed - net io of key %s is %d", model.ResourceNetIOKey, netIO)
 
 	return netIO
 }
@@ -151,20 +152,20 @@ func FilterNodeByNet(nodeNames []string, needNet int64, curNetMap, capNetMap map
 		nodeName := nodeNames[i]
 		curNet, ok := curNetMap[nodeName]
 		if !ok {
-			// log.Warn("current net info of node %s does not exist, skip", nodeName)
+			log.V(5).Info("current net info of node %s does not exist, skip", nodeName)
 			continue
 		}
 
 		capNet, ok1 := capNetMap[nodeName]
 		// 过滤掉不存在或者资源超出的情况
 		if !ok1 {
-			// log.Warn("cap net info of node %s does not exist, skip", nodeName)
+			log.V(5).Info("cap net info of node %s does not exist, skip", nodeName)
 			continue
 		}
 
 		if needNet+curNet > capNet {
-			// log.Warn("request net %d plus cur net %d overflow net cap %d, skip",
-			// 	needNet, curNet, capNet)
+			log.V(5).Info("request net %d plus cur net %d overflow net cap %d, skip",
+				needNet, curNet, capNet)
 			continue
 		}
 

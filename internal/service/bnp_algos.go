@@ -36,7 +36,7 @@ func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMa
 	netNeed := GetPodNetIONeed(pod)
 	emptyScore := GetDefaultScore(nodeNames)
 	if netNeed == 0 {
-		log.Warn("BalanceNetloadPriority-Score net need is %d, skip", netNeed)
+		log.V(3).Info("BalanceNetloadPriority - Score net need is %d, skip", netNeed)
 		return emptyScore, nil
 	}
 	nodeNum := len(nodeNames)
@@ -44,7 +44,7 @@ func (algo *BalanceNetloadPriority) Score(pod *v1.Pod, nodeNames []string, curMa
 
 	// 没有一个node符合条件
 	if len(validNames) == 0 {
-		log.Warn("none nodes is valid, all nodes's score is 0")
+		log.V(3).Info("none nodes is valid, all nodes's score is 0")
 		return emptyScore, nil
 	}
 

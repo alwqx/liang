@@ -105,6 +105,18 @@ func TestBalanceNetloadPriority_BNPScore(t *testing.T) {
 				"node6": 66,
 			},
 		},
+		{
+			Name:      "test 7",
+			NodeNames: []string{"node1", "node2", "node3"},
+			Needed:    2,
+			CurArr:    []float64{7, 83049, 461394}, // Kbit/s
+			CapArr:    []float64{model.MbitPS, model.MbitPS * 1.5, model.MbitPS * 2.5},
+			Expected: map[string]int64{
+				"node1": 100,
+				"node2": 47,
+				"node3": 0,
+			},
+		},
 	}
 
 	BDPAlgo := BalanceNetloadPriority{}

@@ -22,4 +22,4 @@ syncStatusInterval = "*/10 * * * * ?"
 topsisMin = false
 
 # 是否使用bnp算法
-useBNP = false
+useBNP = true

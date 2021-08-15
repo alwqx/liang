@@ -102,8 +102,13 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 	}
 	// TODO: 做下判断，如果err次数过多，直接panic
 	_, err = s.cron.AddFunc(syncInterval, func() {
-		// innerErr := s.SyncNetIO()
-		innerErr := s.ParallelSyncInfo()
+		var innerErr error
+		if s.useBNP {
+			innerErr = s.SyncNetIO()
+		} else {
+			innerErr = s.ParallelSyncInfo()
+		}
+
 		if innerErr != nil {
 			log.Error("%v", innerErr)
 			return
@@ -283,6 +288,6 @@ func (s *Service) ParallelSyncInfo() error {
 
 	wg.Wait()
 	costTime := time.Now().Sub(start).String()
-	log.V(5).Info("sync dynamic info costs %s", costTime)
+	log.V(7).Info("sync dynamic info costs %s", costTime)
 	return returnErr
 }
