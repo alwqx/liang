@@ -6,11 +6,11 @@ promBasicAuthPassword = "adminlwq"
 
 # 网卡速度带宽信息，单位Mbps
 # 网卡对应的主机名
-netbwMapKeys = ["node-cn2","k8s-master"]
-netbwMapValues = [200.0, 500.0]
+#netbwMapKeys = ["node-cn2","k8s-master"]
+#netbwMapValues = [200.0, 500.0]
 
-#netbwMapKeys = ["node1", "node2", "node3"]
-#netbwMapValues = [1000.0, 1500.0, 2500.0]
+netbwMapKeys = ["node1", "node2", "node3"]
+netbwMapValues = [1000.0, 1500.0, 2500.0]
 
 # 本地缓存超时时间，默认30秒
 localCacheExpire = 30
@@ -19,7 +19,7 @@ localCacheExpire = 30
 syncStatusInterval = "*/10 * * * * ?"
 
 # topsis算法评分是否反转
-topsisMin = true
+topsisMin = false
 
 # 是否使用bnp算法
 useBNP = false
