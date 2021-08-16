@@ -43,7 +43,7 @@ func (s *Service) cmdapScore(args *extenderv1.ExtenderArgs) (*extenderv1.HostPri
 
 	cmdn := CMDNPriority{}
 	res, err := cmdn.Score(args.Pod, nodeNames, s.netBwMap, cacheData)
-	log.V(3).Info("score result of BNP is: %#v", res)
+	log.V(3).Info("score result of CMDAP is: %#v", res)
 	if err == nil && s.topsisMin {
 		for i := range res {
 			res[i].Score = model.MaxNodeScore - res[i].Score

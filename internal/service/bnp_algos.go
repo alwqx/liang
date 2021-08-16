@@ -100,6 +100,7 @@ func (algo *BalanceNetloadPriority) BNPScore(nodeNames []string, needed int64, c
 	for i := 0; i < nodeNum; i++ {
 		curLoad[i] = curMap[i] / capMap[i]
 	}
+	log.V(5).Info("BalanceNetloadPriority BNPScore - curload %v", curLoad)
 
 	// 2. 计算pod调度到节点i的负载
 	newLoad := make([]float64, nodeNum)
