@@ -215,6 +215,7 @@ func (s *Service) filterByNodeName(inMap map[string]int64) map[string]int64 {
 }
 
 func (s *Service) SyncNetIO() error {
+	start := time.Now()
 	res, err := s.dao.RequestPromNetIO(model.NetIOTypeDown)
 	if err != nil {
 		log.Error("get netload from prom error: %v", err)
@@ -233,11 +234,15 @@ func (s *Service) SyncNetIO() error {
 		return err
 	}
 
+	costTime := time.Now().Sub(start).String()
+	log.V(7).Info("sync net info costs %s", costTime)
+
 	return nil
 }
 
 // ParallelSyncInfo 并发获取CPU/Mem/DiskIO/NetIO信息
 func (s *Service) ParallelSyncInfo() error {
+	start := time.Now()
 	type innerFunc func() (map[string]int64, error)
 	funcArr := []innerFunc{s.dao.RequestPromMaxNetIO, s.dao.RequestPromMaxDiskIO, s.dao.RequestPromCPUUsage, s.dao.RequestPromMemUsage}
 
@@ -260,7 +265,6 @@ func (s *Service) ParallelSyncInfo() error {
 
 	var wg sync.WaitGroup
 	var returnErr error
-	start := time.Now()
 	for i := range funcArr {
 		ff := funcArr[i]
 		wg.Add(1)
