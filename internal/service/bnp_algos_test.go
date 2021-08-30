@@ -1,6 +1,8 @@
 package service
 
 import (
+	"fmt"
+	"math/rand"
 	"testing"
 
 	"liang/internal/model"
@@ -265,4 +267,111 @@ func TestBalanceNetloadPriority_Score(t *testing.T) {
 			}
 		})
 	}
+}
+
+// 模拟100个Node，1000个Node和10000个Node的算法性能
+type BNPTester struct {
+	Name      string
+	Pod       *v1.Pod
+	NeedNetIO int
+	NodeNames []string
+	CurArr    []float64
+	CapArr    []float64
+	CurMap    map[string]int64
+	CapMap    map[string]int64
+	Expected  extenderv1.HostPriorityList
+}
+
+// 生成包含n个Node的测试信息
+func FakeBenchBNPData(num int) *BNPTester {
+	nodeNames := make([]string, num)
+	for i := 0; i < num; i++ {
+		nodeNames[i] = fmt.Sprintf("node-%d", i)
+	}
+
+	var capSeed []int64
+	capNum := 50
+	for i := 0; i < capNum; i++ {
+		base := rand.Intn(10) + 1
+		capSeed = append(capSeed, int64(model.GbitPS*base/10))
+	}
+	curMap := make(map[string]int64)
+	capMap := make(map[string]int64)
+	curArr := make([]float64, num)
+	capArr := make([]float64, num)
+	for i := 0; i < num; i++ {
+		name := nodeNames[i]
+		curV := rand.Int63n(100)
+		capV := capSeed[rand.Intn(capNum)]
+
+		curArr[i] = float64(curV)
+		curMap[name] = curV
+		capArr[i] = float64(capV)
+		capMap[name] = capV
+	}
+
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				model.ResourceNetIOKey: "1",
+			},
+		},
+	}
+
+	return &BNPTester{
+		Name:      "BenchTest",
+		Pod:       pod,
+		NeedNetIO: 10,
+		NodeNames: nodeNames,
+		CurMap:    curMap,
+		CurArr:    curArr,
+		CapMap:    capMap,
+		CapArr:    capArr,
+	}
+}
+
+func benchmarkBalanceNetloadPriority_BNPScore(n int, b *testing.B) {
+	BDPAlgo := BalanceNetloadPriority{}
+	tc := FakeBenchBNPData(n)
+	// 重置定时器，去掉上面分配n个数据的操作
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		BDPAlgo.BNPScore(tc.NodeNames, int64(tc.NeedNetIO), tc.CurArr, tc.CapArr)
+	}
+}
+
+func BenchmarkBalanceNetloadPriority_BNPScore10(b *testing.B) {
+	benchmarkBalanceNetloadPriority_BNPScore(10, b)
+}
+func BenchmarkBalanceNetloadPriority_BNPScore100(b *testing.B) {
+	benchmarkBalanceNetloadPriority_BNPScore(100, b)
+}
+func BenchmarkBalanceNetloadPriority_BNPScore1000(b *testing.B) {
+	benchmarkBalanceNetloadPriority_BNPScore(1000, b)
+}
+func BenchmarkBalanceNetloadPriority_BNPScore10000(b *testing.B) {
+	benchmarkBalanceNetloadPriority_BNPScore(10000, b)
+}
+
+func benchmarkBalanceNetloadPriority_Score(n int, b *testing.B) {
+	BDPAlgo := BalanceNetloadPriority{}
+	tc := FakeBenchBNPData(n)
+	// 重置定时器，去掉上面分配n个数据的操作
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		BDPAlgo.Score(tc.Pod, tc.NodeNames, tc.CurMap, tc.CapMap)
+	}
+}
+
+func BenchmarkBalanceNetloadPriority_Score10(b *testing.B) {
+	benchmarkBalanceNetloadPriority_BNPScore(10, b)
+}
+func BenchmarkBalanceNetloadPriority_Score100(b *testing.B) {
+	benchmarkBalanceNetloadPriority_Score(100, b)
+}
+func BenchmarkBalanceNetloadPriority_Score1000(b *testing.B) {
+	benchmarkBalanceNetloadPriority_Score(1000, b)
+}
+func BenchmarkBalanceNetloadPriority_Score10000(b *testing.B) {
+	benchmarkBalanceNetloadPriority_Score(10000, b)
 }

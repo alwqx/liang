@@ -1,6 +1,8 @@
 package service
 
 import (
+	"fmt"
+	"math/rand"
 	"reflect"
 	"testing"
 
@@ -493,4 +495,144 @@ func TestGetUsageArray(t *testing.T) {
 			}
 		})
 	}
+}
+
+type CMDNTester struct {
+	Name      string
+	Pod       *v1.Pod
+	NodeNames []string
+	NetCapMap map[string]int64
+	CacheData map[string](map[string]int64)
+	Expected  extenderv1.HostPriorityList
+
+	CurArr []float64
+	CapArr []float64
+	CurMap map[string]int64
+	CapMap map[string]int64
+}
+
+/*
+
+{
+	Name: "test 0: just one node",
+	Pod: &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				model.ResourceNetIOKey: "1",
+			},
+		},
+	},
+	NodeNames: []string{"node1"},
+	NetCapMap: map[string]int64{
+		"node1": 1024,
+	},
+	CacheData: map[string](map[string]int64){
+		model.ResourceCPUKey: map[string]int64{
+			"node1": 28,
+		},
+		model.ResourceMemKey: map[string]int64{
+			"node1": 68,
+		},
+		model.ResourceDiskIOKey: map[string]int64{
+			"node1": 68,
+		},
+		model.ResourceNetIOKey: map[string]int64{
+			"node1": 20,
+		},
+	},
+	Expected: extenderv1.HostPriorityList{
+		extenderv1.HostPriority{Host: "node1", Score: 100},
+	},
+},
+
+*/
+
+// 生成包含n个Node的测试信息
+func FakeBenchCMDNData(num int) *CMDNTester {
+	nodeNames := make([]string, num)
+	for i := 0; i < num; i++ {
+		nodeNames[i] = fmt.Sprintf("node-%d", i)
+	}
+
+	capNum := 50
+	capSeed := make([]int64, capNum)
+	for i := 0; i < capNum; i++ {
+		base := rand.Intn(20) + 1
+		capSeed[i] = int64(model.GbitPS * base / 10)
+	}
+
+	cpuMap := make(map[string]int64)
+	memMap := make(map[string]int64)
+	diskMap := make(map[string]int64)
+	netMap := make(map[string]int64)
+	capMap := make(map[string]int64)
+	curArr := make([]float64, num)
+	capArr := make([]float64, num)
+
+	for i := 0; i < num; i++ {
+		name := nodeNames[i]
+		curV := rand.Int63n(100)
+		capV := capSeed[rand.Intn(capNum)]
+
+		curArr[i] = float64(curV)
+		// curMap[name] = curV
+		capArr[i] = float64(capV)
+		capMap[name] = capV
+
+		cpuMap[name] = int64(rand.Intn(100))
+		memMap[name] = int64(rand.Intn(100))
+		diskMap[name] = int64(rand.Intn(100))
+		netMap[name] = int64(rand.Intn(100))
+	}
+
+	cacheData := map[string](map[string]int64){
+		model.ResourceCPUKey:    cpuMap,
+		model.ResourceMemKey:    memMap,
+		model.ResourceDiskIOKey: diskMap,
+		model.ResourceNetIOKey:  netMap,
+	}
+
+	pod := &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				model.ResourceNetIOKey: "1",
+			},
+		},
+	}
+
+	return &CMDNTester{
+		Name:      "BenchCMDNTest",
+		Pod:       pod,
+		NodeNames: nodeNames,
+		NetCapMap: capMap,
+		CacheData: cacheData,
+
+		// CurMap: curMap,
+		CurArr: curArr,
+		CapMap: capMap,
+		CapArr: capArr,
+	}
+}
+
+func benchmarkCMDNPriority_Score(n int, b *testing.B) {
+	cmdn := CMDNPriority{}
+	tc := FakeBenchCMDNData(n)
+	// 重置定时器，去掉上面分配n个数据的操作
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		cmdn.Score(tc.Pod, tc.NodeNames, tc.NetCapMap, tc.CacheData)
+	}
+}
+
+func BenchmarkCMDNPriority_Score10(b *testing.B) {
+	benchmarkCMDNPriority_Score(10, b)
+}
+func BenchmarkCMDNPriority_Score100(b *testing.B) {
+	benchmarkCMDNPriority_Score(100, b)
+}
+func BenchmarkCMDNPriority_Score1000(b *testing.B) {
+	benchmarkCMDNPriority_Score(1000, b)
+}
+func BenchmarkCMDNPriority_Score10000(b *testing.B) {
+	benchmarkCMDNPriority_Score(10000, b)
 }
