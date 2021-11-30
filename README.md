@@ -37,6 +37,17 @@ Multi-criteria resources scheduling algorithm CMDN is based on TOPSIS decision a
 
 The experiments show that BNP Algorithm improves the balance level of cluster  network IO, prevents nodes from network IO bottlenecks, and also reduces the container deployment time by 32%. The CMDN Algorithm can balance the multi-criteria resource utilization such as CPU, Memory, disk IO and network IO of the cluster nodes in balancing policy. It also reduces container deployment time by 21%. The CMDN Algorithm can schedule containers to the nodes with high multidi-criteria resource utilization in the compact policy which achieves the expected results.
 
+# Deploy
+1. compile binary
+   ```shell
+   go build cmd/main.go
+   ```
+2. change configs in configs/applications.toml if needed
+3. run binary
+   ```shell
+    ./main -conf configs
+   ```
+
 # Reference
 - [prom go SDK](https://github.com/prometheus/client_golang)
 - [kratos v0.6.0](https://github.com/go-kratos/kratos/tree/v1.0.0)
