@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"reflect"
 	"runtime"
 	"strings"
@@ -30,6 +31,7 @@ type Service struct {
 	nodeNames []string
 	topsisMin bool // 为true则要将topsis得到的结果翻转，评分越大，翻转后越小
 	useBNP    bool // 是否使用bnp算法
+	dryrun    bool // 是否dryrun，用于测试，不会请求真实环境
 }
 
 // New new a service and return.
@@ -42,7 +44,7 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 	cf = s.Close
 	err = paladin.Watch("application.toml", s.ac)
 
-	var topsisMin, useBNP bool
+	var topsisMin, useBNP, dryrun bool
 	topsisMin, err = s.ac.Get("topsisMin").Bool()
 	if err != nil {
 		return
@@ -55,6 +57,13 @@ func New(d dao.Dao) (s *Service, cf func(), err error) {
 	}
 	s.useBNP = useBNP
 	log.V(5).Info("algo config - useBNP: %v, topsisMin: %v", useBNP, topsisMin)
+
+	dryrun, err = s.ac.Get("dryrun").Bool()
+	if err != nil {
+		return
+	}
+	s.dryrun = dryrun
+	log.V(5).Info("dryrun: %v", dryrun)
 
 	var (
 		hosts  []string
@@ -240,8 +249,67 @@ func (s *Service) SyncNetIO() error {
 	return nil
 }
 
+// DryrunSyncInfo 模拟存储需要的数据
+func (s *Service) DryrunSyncInfo() error {
+	// 模拟DiskIO/NetIO/CPU/Mem 数据并存储到缓存中，格式为 map[string]int64类型
+	// map的key为node1 node2 node3等主机hostname，value为对应的值
+	nodeKeys := []string{"node1", "node2", "node3"}
+
+	// diskIO
+	diskMap := make(map[string]int64)
+	for _, v := range nodeKeys {
+		diskMap[v] = s.randSeed(10000)
+	}
+	err := s.dao.SetKV(model.ResourceDiskIOKey, diskMap)
+	if err != nil {
+		return err
+	}
+
+	// netIO
+	netMap := make(map[string]int64)
+	for _, v := range nodeKeys {
+		netMap[v] = s.randSeed(20000)
+	}
+	err = s.dao.SetKV(model.ResourceNetIOKey, netMap)
+	if err != nil {
+		return err
+	}
+
+	// CPU
+	cpuMap := make(map[string]int64)
+	for _, v := range nodeKeys {
+		cpuMap[v] = s.randCPU()
+	}
+	err = s.dao.SetKV(model.ResourceCPUKey, cpuMap)
+	if err != nil {
+		return err
+	}
+
+	// Mem
+	memMap := make(map[string]int64)
+	for _, v := range nodeKeys {
+		memMap[v] = s.randCPU()
+	}
+	return s.dao.SetKV(model.ResourceMemKey, memMap)
+}
+
+func (s *Service) randCPU() int64 {
+	res := rand.Intn(100) + 1
+	return int64(res)
+}
+
+func (s *Service) randSeed(seed int) int64 {
+	res := rand.Intn(seed) + 1
+	return int64(res)
+}
+
 // ParallelSyncInfo 并发获取CPU/Mem/DiskIO/NetIO信息
 func (s *Service) ParallelSyncInfo() error {
+	if s.dryrun {
+		log.V(5).Info("[Service][ParallelSyncInfo] in dryrun mode, all data is fake")
+		return s.DryrunSyncInfo()
+	}
+
 	start := time.Now()
 	type innerFunc func() (map[string]int64, error)
 	funcArr := []innerFunc{s.dao.RequestPromMaxNetIO, s.dao.RequestPromMaxDiskIO, s.dao.RequestPromCPUUsage, s.dao.RequestPromMemUsage}

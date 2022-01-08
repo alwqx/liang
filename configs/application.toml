@@ -23,3 +23,6 @@ topsisMin = false
 
 # 是否使用bnp算法
 useBNP = true
+
+# 是否dryrun
+dryrun = true

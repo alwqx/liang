@@ -24,6 +24,48 @@ Config file for kubernetes scheduler is:
 }
 ```
 
+# Quick Start
+**Note:** This section used default data for run liang, it's just a demo. You should not change default config in `config/` directions.
+
+1. build binary
+   ```shell
+    go build cmd/main.go
+   ```
+2. run binary in shell
+   ```shell
+    ./main -conf configs -log.v 7
+   ```
+3. request `localhost:8000/v1/prioritizeVerb` use cURL
+    ```shell
+    curl --location --request POST 'localhost:8000/v1/prioritizeVerb' \
+    --header 'Content-Type: application/json' \
+    --data-raw '{
+        "Pod": {
+            "metadata": {
+                "creationTimestamp": null,
+                "annotations": {
+                    "LiangNetIO": "80"
+                }
+            },
+            "spec": {
+                "containers": null
+            },
+            "status": {}
+        },
+        "Nodes": null,
+        "NodeNames": [
+            "node1",
+            "node2",
+            "node3"
+        ]
+    }'
+    ```
+
+You will see sample output like:
+```json
+[{"Host":"node1","Score":0},{"Host":"node2","Score":51},{"Host":"node3","Score":100}]
+```
+
 # Customed Kubernetes Scheduling Algorithm
 ## Balanced NetIO Priority (BNP)
 BNP adds network IO resource request and combines the network information of candidate nodes to select the best node. BNP makes the overall network IO usage of the cluster more balanced and reduces the container deployment time.
