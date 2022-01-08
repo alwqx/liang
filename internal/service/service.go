@@ -224,6 +224,10 @@ func (s *Service) filterByNodeName(inMap map[string]int64) map[string]int64 {
 }
 
 func (s *Service) SyncNetIO() error {
+	if s.dryrun {
+		return s.DryrunSyncInfo()
+	}
+
 	start := time.Now()
 	res, err := s.dao.RequestPromNetIO(model.NetIOTypeDown)
 	if err != nil {
